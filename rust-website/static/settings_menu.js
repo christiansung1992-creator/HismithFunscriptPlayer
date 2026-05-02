@@ -1,6 +1,6 @@
 // static/settings_menu.js
 
-import { setAbsoluteMaximum, getAbsoluteMaximum, setIntensityMultiplier, setVibrateMode } from './funscript_handler.js?v=243';
+import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=245';
 
 export function createSettingsMenu() {
     let settingsMenu = document.getElementById('settings-menu');
@@ -37,44 +37,21 @@ export function createSettingsMenu() {
         };
         settingsMenu.appendChild(loopToggle);
 
-        // Add the intensity multiplier slider
-        const intensitySliderLabel = document.createElement('label');
-        intensitySliderLabel.textContent = 'Intensity Multiplier: ';
-        intensitySliderLabel.style.display = 'block';
-        intensitySliderLabel.style.marginBottom = '5px';
-
-        // Add a span to display the current value
-        const intensityValueDisplay = document.createElement('span');
-        intensityValueDisplay.id = 'intensity-value-display';
-        intensityValueDisplay.textContent = '1.0'; // Default value
-        intensityValueDisplay.style.marginLeft = '10px';
-        intensityValueDisplay.style.color = 'white';
-
-        const intensitySlider = document.createElement('input');
-        intensitySlider.id = 'intensity-slider';
-        intensitySlider.type = 'range';
-        intensitySlider.min = '0.3';
-        intensitySlider.max = '3.0';
-        intensitySlider.step = '0.1';
-        intensitySlider.value = '1.0';
-        intensitySlider.style.width = '100%';
-        intensitySlider.oninput = () => {
-            intensityValueDisplay.textContent = intensitySlider.value; // Update the displayed value
-            setIntensityMultiplier(parseFloat(intensitySlider.value));
+        // Add a Calibration button (replaces the old intensity multiplier UI)
+        const calibrationButton = document.createElement('button');
+        calibrationButton.id = 'calibration-button';
+        calibrationButton.textContent = 'Calibration';
+        calibrationButton.style.backgroundColor = 'rgb(70, 70, 70)';
+        calibrationButton.style.color = 'white';
+        calibrationButton.style.border = 'none';
+        calibrationButton.style.padding = '5px 10px';
+        calibrationButton.style.cursor = 'pointer';
+        calibrationButton.style.borderRadius = '3px';
+        calibrationButton.style.marginBottom = '10px';
+        calibrationButton.onclick = () => {
+            window.location.href = '/site/calibration';
         };
-
-        // Listen for the custom event and update the slider value
-        window.addEventListener('intensityMultiplierUpdated', (event) => {
-            const newMultiplier = event.detail.intensityMulitplier;
-            if (typeof newMultiplier !== 'undefined') {
-                intensitySlider.value = newMultiplier.toString();
-                intensityValueDisplay.textContent = intensitySlider.value;
-            }
-        });
-
-        intensitySliderLabel.appendChild(intensityValueDisplay); // Add the value display next to the label
-        settingsMenu.appendChild(intensitySliderLabel);
-        settingsMenu.appendChild(intensitySlider);
+        settingsMenu.appendChild(calibrationButton);
 
         // Add the hard limit input field with lock/unlock
         const hardLimitInputLabel = document.createElement('label');
@@ -122,7 +99,7 @@ export function createSettingsMenu() {
                 setAbsoluteMaximum(value);
             } else {
                 alert('Please enter a value between 0 and 100.');
-                setAbsoluteMaximum(80); // Reset to the current value
+                hardLimitInput.value = getAbsoluteMaximum().toString();
             }
         };
 

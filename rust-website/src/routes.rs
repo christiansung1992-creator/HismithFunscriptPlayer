@@ -10,7 +10,8 @@ use crate::{
         index, 
         video,
         funscript,
-        editor
+        editor,
+        calibration
     },
     intiface_socket
 };
@@ -45,6 +46,7 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
             web::scope("/site")
                 .route("/", web::get().to(index::handle_index))
                 .route("/editor", web::get().to(editor::handle_editor_page))
+                .route("/calibration", web::get().to(calibration::handle_calibration_page))
                 .route("/video/{filename:.*}", web::get().to(video::handle_video))
                 .route("/funscripts/{filename:.*}", web::get().to(funscript::handle_funscript))
                 // Static file serving configuration

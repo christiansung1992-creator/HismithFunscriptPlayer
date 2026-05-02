@@ -22,6 +22,7 @@
 
 pub mod routes;
 pub mod handlers {
+    pub mod calibration;
     pub mod index;
     pub mod video;
     pub mod funscript;
@@ -29,8 +30,8 @@ pub mod handlers {
     pub mod editor;
 }
 
-pub mod intiface_socket;
 pub mod directory_browser;
+pub mod intiface_socket;
 
 /// Buttplug-related functionality for device control and funscript processing
 pub mod buttplug {

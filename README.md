@@ -62,7 +62,7 @@ cargo run
 ```
 
 This will start the web server, and you can access the application in your web browser.
-`http://HOST_IP:5441/site`
+`http://HOST_IP:5441/site/`
 
 ## Running with docker
 
@@ -76,8 +76,8 @@ docker build -t rust-website:v1 .
 First run:
 
 ```bash
-docker run --network=host -d -p 5441:5441 \
-  -v [YOUR_VIDEO_SHARE_PATH]:YOUR_VIDEO_SHARE_PATH:ro \
+docker run -d -p 5441:5441 \
+  -v YOUR_VIDEO_SHARE_PATH:YOUR_VIDEO_SHARE_PATH:ro \
   --name my-rust-app rust-website:v1
 ```
 
@@ -89,7 +89,7 @@ docker start my-rust-app
 ```
 
 This will start the web server, and you can access the application in your web browser.
-`http://HOST_IP:5441/site`
+`http://HOST_IP:5441/site/`
 
 
 ## License

@@ -1,8 +1,8 @@
 // static/video_player.js
 
-import { loadFunscript, getCurrentIntensity, getAbsoluteMaximum, getCurrentVideoMaxIntensity, setIntensityMultiplier, getCurrentVideoRawMaxIntensity, getCurrentVideoRawAverageIntensity, getVibrateMode, getCurrentBeatValue, funscriptActions } from './funscript_handler.js?v=243';
-import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_sliders.js?v=243';
-import { sendDeviceCommand } from './socket.js?v=243';
+import { loadFunscript, getCurrentIntensity, getAbsoluteMaximum, getCurrentVideoMaxIntensity, getCurrentVideoRawMaxIntensity, getCurrentVideoRawAverageIntensity, getVibrateMode, getCurrentBeatValue, funscriptActions } from './funscript_handler.js?v=245';
+import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_sliders.js?v=245';
+import { sendDeviceCommand } from './socket.js?v=245';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DISABLE_FULLSCREEN = ['1', 'true', 'yes'].includes((urlParams.get('no_fullscreen') || '').toLowerCase());
@@ -136,12 +136,6 @@ export async function playVideo(videoUrl, funscriptUrl) {
     videoElement.onloadeddata = async () => {
         // Now, wait for the funscript to finish loading.
         await funscriptPromise;
-
-        // Now that both video and funscript data are ready, we can initialize things that depend on them.
-        setIntensityMultiplier(1.0);
-        if ((getAbsoluteMaximum() * 1.2) < getCurrentVideoMaxIntensity()) {
-            setIntensityMultiplier(1.2 * getAbsoluteMaximum() / getCurrentVideoMaxIntensity());
-        }
 
         updateFunscriptDisplayBox(0);
         updateProgressBars();

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Calibration</title>
+    <link rel="stylesheet" href="/site/static/styles.css?v=245">
+    <style>
+        body,html { height:100%; margin:0; display:flex; align-items:center; justify-content:center; background:#252525; color:#ddd; }
+        .card { width:520px; background:#2d2d2d; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.4); }
+        .controls { display:flex; gap:10px; margin-top:12px; align-items:center; flex-wrap:wrap; }
+        .preset-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+        .preset-btn { padding:8px 12px; border-radius:6px; border:0; cursor:pointer; color:#fff; background:#464646; }
+        .preset-btn.active { background:#0078d7; }
+        #spinner-wrap { display:flex; align-items:center; justify-content:center; margin:12px 0; height:120px; }
+        #calibration-spinner { width:80px; height:80px; border-radius:50%; background:linear-gradient(90deg,#444,#666); position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.6); }
+        #calibration-spinner::after { content:""; position:absolute; left:50%; top:6px; width:8px; height:28px; background:#ffd54f; transform:translateX(-50%); border-radius:4px; }
+        .small { font-size:0.9em; color:#bbb; }
+        .row { display:flex; gap:10px; align-items:center; }
+        input[type=range] { width:260px; }
+        .muted { color:#aaa; font-size:0.9em; }
+        #mapping-list { margin-top:10px; font-family:monospace; color:#fff; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Calibration</h2>
+        <p class="small">Select a preset intensity, then adjust the multiplier so the on-screen spinner matches the real device. Confirm to store the multiplier in-memory.</p>
+
+        <div class="preset-row" id="preset-buttons"></div>
+
+        <div id="spinner-wrap">
+            <div id="calibration-spinner" aria-hidden="true"></div>
+        </div>
+
+        <div class="controls">
+            <label class="muted">Multiplier: <span id="multiplier-value">1.00</span>x</label>
+
+            <div class="row" style="gap:6px; margin-top:8px;">
+                <button id="mult-dec-large" class="preset-btn">-0.10</button>
+                <button id="mult-dec-small" class="preset-btn">-0.01</button>
+                <input id="multiplier-input" type="number" step="0.01" min="0.50" max="3.00" value="1.00" style="width:80px; text-align:center;" />
+                <button id="mult-inc-small" class="preset-btn">+0.01</button>
+                <button id="mult-inc-large" class="preset-btn">+0.10</button>
+            </div>
+
+            <div class="row" style="margin-top:10px;">
+                <button id="start-button" class="preset-btn">Start</button>
+                <button id="stop-button" class="preset-btn">Stop</button>
+                <button id="confirm-button" class="preset-btn">Confirm</button>
+                <button id="reset-button" class="preset-btn">Reset</button>
+            </div>
+        </div>
+
+        <div id="info" class="small">
+            <div>Selected preset: <span id="selected-preset">—</span></div>
+            <div>Target spins/sec (nominal): <span id="target-spin">—</span></div>
+            <div>Sent intensity (normalized): <span id="sent-intensity">—</span></div>
+        </div>
+
+        <div id="mapping-list" class="small"></div>
+
+        <p class="muted" style="margin-top:10px;">Note: persistence not implemented. This page temporarily sets device limit to 100 while running.</p>
+    </div>
+
+    <script src="/site/static/calibration.js?v=245" type="module"></script>
+</body>
+</html>

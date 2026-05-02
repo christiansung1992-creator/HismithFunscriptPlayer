@@ -6,7 +6,6 @@ export let intensityActions = [];
 let currentVideoRawMaxIntensity = 0;
 let currentVideoRawAverageIntensity = 0;
 
-let intensityMulitplier = 1; // Default multiplier
 let absoluteMax = 60; // Default maximum intensity
 
 let vibrateMode = 'Rate'; // Default vibrate mode
@@ -81,23 +80,11 @@ export function getCurrentIntensityUnclamped(currentTime) {
     const t = (currentTime - previousAction.at) / (nextAction.at - previousAction.at);
     const interpolatedIntensity = previousAction.pos + t * (nextAction.pos - previousAction.pos);
 
-    return Math.floor(interpolatedIntensity * intensityMulitplier);
+    return interpolatedIntensity;
 }
 
 export function getCurrentVideoMaxIntensity() {
-    return Math.floor(currentVideoRawMaxIntensity * intensityMulitplier);
-}
-
-export function setIntensityMultiplier(multiplier) {
-    intensityMulitplier = multiplier;
-
-    // Emit a custom event to notify about the update
-    const event = new CustomEvent('intensityMultiplierUpdated', { detail: { intensityMulitplier } });
-    window.dispatchEvent(event);
-}
-
-export function getIntensityMultiplier() {
-    return intensityMulitplier;
+    return Math.floor(currentVideoRawMaxIntensity);
 }
 
 export function setVibrateMode(mode) {

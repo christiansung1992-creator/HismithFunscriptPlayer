@@ -1,6 +1,6 @@
 // static/funscript_sliders.js
 
-import { getAbsoluteMaximum, funscriptActions, intensityActions, getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped, getIntensityMultiplier } from './funscript_handler.js?v=243';
+import { getAbsoluteMaximum, funscriptActions, intensityActions, getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=245';
 
 export function createFunscriptDisplayBox() {
     let funscriptBox = document.getElementById('funscript-box');
@@ -83,9 +83,9 @@ export function updateFunscriptDisplayBox(currentTime) {
 
         if (current.at >= startTime && next.at <= endTime) {
             const currentX = (current.at - startTime) * scaleX;
-            const currentY = canvas.height - Math.min(current.pos * getIntensityMultiplier(), getAbsoluteMaximum()) * scaleY;
+            const currentY = canvas.height - Math.min(current.pos, getAbsoluteMaximum()) * scaleY;
             const nextX = (next.at - startTime) * scaleX;
-            const nextY = canvas.height - Math.min(next.pos * getIntensityMultiplier(), getAbsoluteMaximum()) * scaleY;
+            const nextY = canvas.height - Math.min(next.pos, getAbsoluteMaximum()) * scaleY;
 
             if (i === 0) ctx.moveTo(currentX, canvas.height); // Start from the bottom
             ctx.lineTo(currentX, currentY);
