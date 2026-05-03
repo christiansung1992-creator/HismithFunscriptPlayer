@@ -1,10 +1,11 @@
 // static/funscript_handler.js
 
+import { getCalibrationMultiplier } from './calibration.js?v=251';
+
 export let funscriptActions = [];
 export let intensityActions = [];
 
 let currentVideoRawMaxIntensity = 0;
-let currentVideoRawAverageIntensity = 0;
 
 let absoluteMax = 60; // Default maximum intensity
 
@@ -14,7 +15,6 @@ export async function loadFunscript(funscriptUrl) {
     funscriptActions = [];
     intensityActions = [];
     currentVideoRawMaxIntensity = 0;
-    currentVideoRawAverageIntensity = 0;
     await fetch(funscriptUrl)
         .then(response => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -31,7 +31,6 @@ export async function loadFunscript(funscriptUrl) {
                 const positions = intensityActions.map(action => action.pos);
                 if (positions.length > 0) {
                     currentVideoRawMaxIntensity = Math.max(...positions);
-                    currentVideoRawAverageIntensity = getTimeWeightedAverage(intensityActions);
                 }
             } else {
                 intensityActions = [];
@@ -103,12 +102,12 @@ export function getAbsoluteMaximum() {
     return absoluteMax;
 }
 
-export function getCurrentVideoRawMaxIntensity() {
-    return currentVideoRawMaxIntensity;
+export function getAbsoluteMaximumInverseCalibrated() {
+    return absoluteMax / getCalibrationMultiplier(absoluteMax);
 }
 
-export function getCurrentVideoRawAverageIntensity() {
-    return currentVideoRawAverageIntensity;
+export function getCurrentVideoRawMaxIntensity() {
+    return currentVideoRawMaxIntensity;
 }
 
 export function getCurrentBeatValue(currentTime) {
@@ -148,22 +147,4 @@ export function getCurrentBeatValue(currentTime) {
         }
     }
     return vibrateValue;
-};
-
-const getTimeWeightedAverage = (actions) => {
-    if (actions.length < 2) return 0;
-
-    let totalWeighted = 0;
-    let totalDuration = 0;
-
-    for (let i = 0; i < actions.length - 1; i++) {
-        const curr = actions[i];
-        const next = actions[i + 1];
-
-        const duration = next.at - curr.at;
-        totalWeighted += curr.pos * duration;
-        totalDuration += duration;
-    }
-
-    return totalWeighted / totalDuration;
 };

@@ -1,6 +1,6 @@
 // static/settings_menu.js
 
-import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=245';
+import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=251';
 
 export function createSettingsMenu() {
     let settingsMenu = document.getElementById('settings-menu');
@@ -37,7 +37,7 @@ export function createSettingsMenu() {
         };
         settingsMenu.appendChild(loopToggle);
 
-        // Add a Calibration button (replaces the old intensity multiplier UI)
+        // Add a Calibration button (opens an overlay instead of navigating away)
         const calibrationButton = document.createElement('button');
         calibrationButton.id = 'calibration-button';
         calibrationButton.textContent = 'Calibration';
@@ -48,11 +48,131 @@ export function createSettingsMenu() {
         calibrationButton.style.cursor = 'pointer';
         calibrationButton.style.borderRadius = '3px';
         calibrationButton.style.marginBottom = '10px';
-        calibrationButton.onclick = () => {
-            window.location.href = '/site/calibration';
-        };
+
+        // open overlay handler
+        async function openCalibrationOverlay() {
+            if (document.getElementById('calibration-overlay')) return;
+
+            let resp;
+            try {
+                resp = await fetch('/site/static/calibration.html?v=251');
+            } catch (err) {
+                console.error('Failed to fetch calibration UI', err);
+                alert('Failed to load calibration UI');
+                return;
+            }
+            if (!resp.ok) {
+                alert('Failed to load calibration UI');
+                return;
+            }
+            const html = await resp.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // inject style from fetched page once
+            const remoteStyle = doc.querySelector('head > style');
+            if (remoteStyle && !document.getElementById('calibration-style-injected')) {
+                const styleEl = document.createElement('style');
+                styleEl.id = 'calibration-style-injected';
+                styleEl.textContent = remoteStyle.textContent;
+                document.head.appendChild(styleEl);
+            }
+
+            // extract the card (main content)
+            const card = doc.querySelector('.card') ? doc.querySelector('.card').outerHTML : doc.body.innerHTML;
+
+            // create overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'calibration-overlay';
+            Object.assign(overlay.style, {
+                position: 'fixed',
+                left: '0',
+                top: '0',
+                right: '0',
+                bottom: '0',
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: '9999',
+                padding: '20px',
+            });
+
+            const inner = document.createElement('div');
+            inner.style.position = 'relative';
+            inner.innerHTML = card;
+
+            // close (X) button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.title = 'Close';
+            Object.assign(closeBtn.style, {
+                position: 'absolute',
+                top: '-12px',
+                right: '-12px',
+                padding: '6px 10px',
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgb(70,70,70)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '16px',
+            });
+            inner.appendChild(closeBtn);
+
+            overlay.appendChild(inner);
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+
+            // dynamic import and initialize the calibration module
+            try {
+                const mod = await import('/site/static/calibration.js?v=251');
+                if (mod && typeof mod.setup === 'function') {
+                    mod.setup();
+                }
+            } catch (err) {
+                console.error('Failed to load calibration module', err);
+            }
+
+            // helper to stop calibration (click stop btn) and remove overlay
+            function closeOverlay() {
+                const stopBtn = overlay.querySelector('#stop-button');
+                if (stopBtn) stopBtn.click();
+                document.body.style.overflow = '';
+                document.removeEventListener('keydown', keyHandler);
+                overlay.remove();
+            }
+
+            // close on X
+            closeBtn.addEventListener('click', closeOverlay);
+
+            // close when clicking outside the card
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeOverlay();
+            });
+
+            // close when confirm is pressed (confirm applies mapping; we also stop and close)
+            const confirmBtn = overlay.querySelector('#confirm-button');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    const stopBtn = overlay.querySelector('#stop-button');
+                    if (stopBtn) stopBtn.click();
+                    // short delay to allow stop to run
+                    setTimeout(closeOverlay, 60);
+                });
+            }
+
+            // ESC to close
+            function keyHandler(e) {
+                if (e.key === 'Escape') closeOverlay();
+            }
+            document.addEventListener('keydown', keyHandler);
+        }
+
+        calibrationButton.onclick = () => openCalibrationOverlay();
         settingsMenu.appendChild(calibrationButton);
 
+        // ...existing code...
         // Add the hard limit input field with lock/unlock
         const hardLimitInputLabel = document.createElement('label');
         hardLimitInputLabel.textContent = 'Max Intensity Limit: ';

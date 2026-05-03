@@ -1,6 +1,7 @@
-// static/funscript_sliders.js
+// static/funscript_display_graphs.js
 
-import { getAbsoluteMaximum, funscriptActions, intensityActions, getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=245';
+import { getAbsoluteMaximum, getAbsoluteMaximumInverseCalibrated, funscriptActions, intensityActions, 
+    getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=251';
 
 export function createFunscriptDisplayBox() {
     let funscriptBox = document.getElementById('funscript-box');
@@ -42,6 +43,12 @@ export function updateFunscriptDisplayBox(currentTime) {
     const canvas = document.getElementById('funscript-canvas');
     if (!canvas) return;
 
+    const rawMaxIntensity = getCurrentVideoMaxIntensity();
+    const absoluteMax = getAbsoluteMaximum();
+    const absoluteMaximumInverseCalibrated = getAbsoluteMaximumInverseCalibrated();
+    const currentIntensity = getCurrentIntensity(currentTime);
+    const currentIntensityUnclamped = getCurrentIntensityUnclamped(currentTime);
+
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -56,7 +63,7 @@ export function updateFunscriptDisplayBox(currentTime) {
     const endTime = currentTime + range;
 
     const scaleX = canvas.width / (2 * range); // Scale to fit 6 seconds (3 before + 3 after)
-    const scaleY = canvas.height / getCurrentVideoMaxIntensity();
+    const scaleY = canvas.height / rawMaxIntensity;
 
     if (funscriptActions === undefined || intensityActions === undefined) {
         return;
@@ -67,7 +74,7 @@ export function updateFunscriptDisplayBox(currentTime) {
     ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)'; // Semi-transparent green
 
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    let customGradientValue = 1 - getCurrentIntensity(currentTime) / getCurrentVideoMaxIntensity();
+    let customGradientValue = 1 - currentIntensity / rawMaxIntensity;
     if (isNaN(customGradientValue) || !isFinite(customGradientValue)) {
         customGradientValue = 0;
     }
@@ -83,9 +90,9 @@ export function updateFunscriptDisplayBox(currentTime) {
 
         if (current.at >= startTime && next.at <= endTime) {
             const currentX = (current.at - startTime) * scaleX;
-            const currentY = canvas.height - Math.min(current.pos, getAbsoluteMaximum()) * scaleY;
+            const currentY = canvas.height - Math.min(current.pos, absoluteMaximumInverseCalibrated) * scaleY;
             const nextX = (next.at - startTime) * scaleX;
-            const nextY = canvas.height - Math.min(next.pos, getAbsoluteMaximum()) * scaleY;
+            const nextY = canvas.height - Math.min(next.pos, absoluteMaximumInverseCalibrated) * scaleY;
 
             if (i === 0) ctx.moveTo(currentX, canvas.height); // Start from the bottom
             ctx.lineTo(currentX, currentY);
@@ -161,9 +168,6 @@ export function updateFunscriptDisplayBox(currentTime) {
 
     ctx.fillStyle = 'white';
 
-    const rawMaxIntensity = getCurrentVideoMaxIntensity();
-    const absoluteMax = getAbsoluteMaximum();
-
     let displayText = `Max: ${rawMaxIntensity.toFixed(2)}`;
     if (rawMaxIntensity > absoluteMax) {
         displayText += ` (Clamped: ${absoluteMax.toFixed(2)})`;
@@ -172,7 +176,7 @@ export function updateFunscriptDisplayBox(currentTime) {
     const fontSize = Math.min(16, canvas.height * 0.10);
     ctx.font = `${fontSize}px Arial`;
     ctx.textAlign = "center";
-    ctx.fillText(displayText, canvas.width / 2, canvas.height + (fontSize / 4) - getAbsoluteMaximum() * scaleY);
+    ctx.fillText(displayText, canvas.width / 2, canvas.height + (fontSize / 4) - absoluteMaximumInverseCalibrated * scaleY);
 
     // Calculate text dimensions
     const textMetrics = ctx.measureText(displayText);
@@ -180,7 +184,7 @@ export function updateFunscriptDisplayBox(currentTime) {
 
 
     ctx.beginPath();
-    if (getCurrentIntensityUnclamped(currentTime) > getAbsoluteMaximum()) {
+    if (currentIntensityUnclamped > absoluteMax) {
         ctx.strokeStyle = 'rgb(255, 0, 0)';
         ctx.lineWidth = 8;
     }
@@ -188,10 +192,10 @@ export function updateFunscriptDisplayBox(currentTime) {
         ctx.strokeStyle = 'rgb(255, 255, 255)';
         ctx.lineWidth = 2;
     }
-    ctx.moveTo(0, canvas.height - getAbsoluteMaximum() * scaleY);
-    ctx.lineTo((canvas.width - textWidth - 10) / 2, canvas.height - getAbsoluteMaximum() * scaleY);
-    ctx.moveTo((canvas.width + textWidth + 10) / 2, canvas.height - getAbsoluteMaximum() * scaleY);
-    ctx.lineTo(canvas.width, canvas.height - getAbsoluteMaximum() * scaleY);
+    ctx.moveTo(0, canvas.height - absoluteMaximumInverseCalibrated * scaleY);
+    ctx.lineTo((canvas.width - textWidth - 10) / 2, canvas.height - absoluteMaximumInverseCalibrated * scaleY);
+    ctx.moveTo((canvas.width + textWidth + 10) / 2, canvas.height - absoluteMaximumInverseCalibrated * scaleY);
+    ctx.lineTo(canvas.width, canvas.height - absoluteMaximumInverseCalibrated * scaleY);
     ctx.stroke();
 
 

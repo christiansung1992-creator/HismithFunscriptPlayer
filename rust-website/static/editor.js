@@ -306,5 +306,4 @@ function setupCanvasEventListeners() {
     });
 }
 
-// --- Start Application ---
-init();
+document.addEventListener('DOMContentLoaded', init);

@@ -27,7 +27,7 @@ A web-based video player application built with Rust and JavaScript that synchro
 - `static/`
   - `video_player.js` - Core video player implementation
   - `funscript_handler.js` - Funscript data management
-  - `funscript_sliders.js` - Visualization components
+  - `funscript_display_graphs.js` - Visualization components
   - `settings_menu.js` - User settings interface
   - `socket.js` - WebSocket communication
   - `styles.css` - Application styling

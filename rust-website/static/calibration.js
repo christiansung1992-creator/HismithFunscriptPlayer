@@ -1,9 +1,8 @@
-import { initWebSocket, sendDeviceCommand } from './socket.js?v=245';
-import { setAbsoluteMaximum, getAbsoluteMaximum } from './funscript_handler.js?v=245';
+import { initWebSocket, sendDeviceCommand } from './socket.js?v=251';
 
 const PRESETS = [10, 20, 30, 40, 50];
 const multipliers = {};
-PRESETS.forEach(p => multipliers[p] = 1.0);
+multipliers[PRESETS[0]] = 1.0;
 
 let selectedPreset = null;
 let running = false;
@@ -11,7 +10,6 @@ let sendInterval = null;
 let spinnerAnimId = null;
 let spinnerAngle = 0;
 let lastTs = null;
-let savedAbsMax = getAbsoluteMaximum();
 
 let lastSentIntensity = null;
 let lastSendTime = 0;
@@ -60,7 +58,15 @@ function buildPresetButtons() {
         const btn = document.createElement('button');
         btn.className = 'preset-btn';
         btn.textContent = p.toString();
-        btn.onclick = () => selectPreset(p, btn);
+        if (multipliers[p] === undefined) btn.classList.add('inactive');
+        btn.onclick = () => {
+            // activate on first click if inactive, then select
+            if (multipliers[p] === undefined) {
+                multipliers[p] = 1.0;
+                btn.classList.remove('inactive');
+            }
+            selectPreset(p, btn);
+        };
         elements.presetsContainer.appendChild(btn);
     });
 }
@@ -75,11 +81,12 @@ function selectPreset(preset, btn) {
     // highlight active
     Array.from(elements.presetsContainer.children).forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    btn.classList.remove('inactive');
     // update UI
     elements.selectedPreset.textContent = `${preset}`;
+    elements.multiplierInput.value = (multipliers[preset] ?? 1.0).toFixed(2);
+    elements.multiplierValue.textContent = (multipliers[preset] ?? 1.0).toFixed(2);
     updateTargetSpinDisplay();
-    elements.multiplierInput.value = multipliers[preset].toFixed(2);
-    elements.multiplierValue.textContent = multipliers[preset].toFixed(2);
     updateSentIntensityDisplay();
     setMultiplierControlsEnabled(true);
 }
@@ -138,8 +145,6 @@ function adjustMultiplier(delta) {
 
 function startCalibration() {
     if (!selectedPreset || running) return;
-    savedAbsMax = getAbsoluteMaximum();
-    try { setAbsoluteMaximum(100); } catch(e) { /* ignore */ }
 
     running = true;
     lastSentIntensity = null;
@@ -179,7 +184,6 @@ function stopCalibration() {
     if (spinnerAnimId) cancelAnimationFrame(spinnerAnimId);
     spinnerAnimId = null;
     lastTs = null;
-    try { setAbsoluteMaximum(savedAbsMax); } catch(e) { /* ignore */ }
     sendDeviceCommand(0, 0);
     lastSentIntensity = null;
     lastSendTime = 0;
@@ -196,19 +200,25 @@ function confirmMultiplier() {
 }
 
 function resetMultipliers() {
-    PRESETS.forEach(p => multipliers[p] = 1.0);
-    if (selectedPreset) {
-        elements.multiplierInput.value = '1.00';
-        elements.multiplierValue.textContent = '1.00';
-        updateTargetSpinDisplay();
-        updateSentIntensityDisplay();
-    }
+    PRESETS.forEach((p, i) => {
+        if (i === 0) multipliers[p] = 1.0; // keep first preset active
+        else delete multipliers[p];
+    });
+    selectedPreset = null;
+    buildPresetButtons();
+    elements.multiplierInput.value = '1.00';
+    elements.multiplierValue.textContent = '1.00';
+    elements.selectedPreset.textContent = '—';
+    elements.targetSpin.textContent = '—';
+    elements.sentIntensity.textContent = '—';
+    setMultiplierControlsEnabled(false);
     renderMappingList();
 }
 
 function renderMappingList() {
     elements.mappingList.innerHTML = PRESETS.map(p => {
-        return `${p}: ${multipliers[p].toFixed(3)}x`;
+        const v = multipliers[p];
+        return v === undefined ? `${p}: (inactive)` : `${p}: ${v.toFixed(3)}x`;
     }).join(' | ');
 }
 
@@ -231,7 +241,7 @@ function spinnerFrame(ts) {
 }
 
 /* Events binding */
-function setup() {
+export function setup() {
     initWebSocket();
     initElements();
     buildPresetButtons();
@@ -263,4 +273,22 @@ function setup() {
     setMultiplierControlsEnabled(false);
 }
 
-document.addEventListener('DOMContentLoaded', setup);
+export function getCalibrationMultiplier(rawIntensity) {
+    const v = clamp(rawIntensity, 0, 100);
+    const active = PRESETS.filter(p => multipliers[p] !== undefined);
+    if (active.length === 0) return 1.0;
+    if (active.length === 1) return multipliers[active[0]] ?? 1.0;
+    if (v <= active[0]) return multipliers[active[0]];
+    if (v >= active[active.length - 1]) return multipliers[active[active.length - 1]];
+    for (let i = 0; i < active.length - 1; i++) {
+        const a = active[i], b = active[i + 1];
+        if (v >= a && v <= b) {
+            const t = (v - a) / (b - a);
+            const s = t * t * (3 - 2 * t); // smoothstep (cubic) easing
+            const ma = multipliers[a];
+            const mb = multipliers[b];
+            return ma + (mb - ma) * s;
+        }
+    }
+    return 1.0;
+}

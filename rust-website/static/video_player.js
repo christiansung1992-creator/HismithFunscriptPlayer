@@ -1,8 +1,9 @@
 // static/video_player.js
 
-import { loadFunscript, getCurrentIntensity, getAbsoluteMaximum, getCurrentVideoMaxIntensity, getCurrentVideoRawMaxIntensity, getCurrentVideoRawAverageIntensity, getVibrateMode, getCurrentBeatValue, funscriptActions } from './funscript_handler.js?v=245';
-import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_sliders.js?v=245';
-import { sendDeviceCommand } from './socket.js?v=245';
+import { loadFunscript, getCurrentIntensity, getCurrentVideoMaxIntensity, getVibrateMode, getCurrentBeatValue } from './funscript_handler.js?v=251';
+import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_display_graphs.js?v=251';
+import { sendDeviceCommand } from './socket.js?v=251';
+import { getCalibrationMultiplier } from './calibration';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DISABLE_FULLSCREEN = ['1', 'true', 'yes'].includes((urlParams.get('no_fullscreen') || '').toLowerCase());
@@ -27,7 +28,7 @@ export async function playVideo(videoUrl, funscriptUrl) {
     videoPlayer.innerHTML = ''; // Clear any existing video
     videoPlayer.appendChild(videoElement);
 
-    // Add a spinner element
+    // Loading spinner while video is loading
     let spinner = document.getElementById('loading-spinner');
     if (!spinner) {
         spinner = document.createElement('div');
@@ -47,7 +48,7 @@ export async function playVideo(videoUrl, funscriptUrl) {
     }
     spinner.style.display = 'block'; // Show spinner
 
-    // Update the funscript display as the video plays
+    // Update the funscript graphs for the next repaint of the page (i.e. the next frame frame)
     function updateProgressBars() {
         const currentTime = videoElement.currentTime * 1000;
         const intensity = getCurrentIntensity(currentTime);
@@ -58,14 +59,13 @@ export async function playVideo(videoUrl, funscriptUrl) {
 
         let oscillateValue = 0;
         if (intensity !== undefined) {
-            oscillateValue = lerpIntensity(0, intensity, progress) / 100, 150;
+            oscillateValue = lerpIntensity(0, intensity * getCalibrationMultiplier(intensity), progress) / 100, 150;
         }
 
         let vibrateValue = 0;
         if (getVibrateMode() === 'Rate') {
-            // Default: rate-based            
             if (intensity !== undefined) {
-                vibrateValue = lerpIntensity(0, intensity, progress) / 100;
+                vibrateValue = lerpIntensity(0, (intensity / 100) * getCurrentVideoMaxIntensity(), progress) / 100;
             }
         } else {
             const beatValue = getCurrentBeatValue(currentTime);
@@ -76,6 +76,7 @@ export async function playVideo(videoUrl, funscriptUrl) {
 
         sendDeviceCommand(oscillateValue, vibrateValue);
 
+        // schedule update for the next repaint (so it keeps updating every frame)
         currentAnimationFrame = requestAnimationFrame(updateProgressBars);
     }
 
