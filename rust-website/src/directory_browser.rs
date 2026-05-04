@@ -57,6 +57,11 @@ pub fn build_directory_tree(path: &PathBuf, relative_path: &str) -> Result<FileN
         let file_name = entry.file_name();
         let file_name_str = file_name.to_string_lossy().to_string();
         
+        // Skip directory named "funscripts"
+        if file_type.is_dir() && file_name_str.eq_ignore_ascii_case("funscripts") {
+            continue;
+        }
+
         // Build relative path for URLs
         let file_path = if relative_path.is_empty() {
             file_name_str.clone()

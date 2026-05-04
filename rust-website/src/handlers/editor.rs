@@ -20,11 +20,11 @@ pub struct SaveFunscriptPayload {
 pub async fn save_funscript(
     payload: web::Json<SaveFunscriptPayload>
 ) -> impl Responder {
-    let video_share_path = match env::var("VIDEO_SHARE_PATH") {
+    let funscript_share_path = match env::var("FUNSCRIPT_SHARE_PATH") {
         Ok(p) => p,
         Err(e) => {
-            log::error!("VIDEO_SHARE_PATH not set: {}", e);
-            return HttpResponse::InternalServerError().json("Server configuration error: VIDEO_SHARE_PATH not set");
+            log::error!("FUNSCRIPT_SHARE_PATH not set: {}", e);
+            return HttpResponse::InternalServerError().json("Server configuration error: FUNSCRIPT_SHARE_PATH not set");
         }
     };
 
@@ -35,9 +35,9 @@ pub async fn save_funscript(
         return HttpResponse::BadRequest().json("Invalid path format.");
     }
     
-    let full_video_path = PathBuf::from(&video_share_path).join(&video_path);
+    let full_funscript_path = PathBuf::from(&funscript_share_path).join(&video_path);
 
-    let funscript_path = full_video_path.with_extension("funscript");
+    let funscript_path = full_funscript_path.with_extension("funscript");
 
     let funscript_data = FunscriptData {
         actions: payload.actions.clone(),

@@ -44,10 +44,10 @@ pub async fn handle_funscript(path: web::Path<String>) -> HttpResponse {
     info!("Handling funscript request for video: {}", &requested_video_path);
 
     // Get base path from environment
-    let video_base_path = match env::var("VIDEO_SHARE_PATH") {
+    let funscript_base_path = match env::var("FUNSCRIPT_SHARE_PATH") {
         Ok(p) => p,
         Err(e) => {
-            error!("VIDEO_SHARE_PATH environment variable not set: {}", e);
+            error!("FUNSCRIPT_SHARE_PATH environment variable not set: {}", e);
             return HttpResponse::InternalServerError().json(FunscriptResponse {
                 original: None,
                 intensity: None,
@@ -56,7 +56,7 @@ pub async fn handle_funscript(path: web::Path<String>) -> HttpResponse {
     };
 
     // Construct full path to funscript file
-    let funscript_filepath = match get_funscript_path_for_video(&requested_video_path, &video_base_path) {
+    let funscript_filepath = match get_funscript_path_for_video(&requested_video_path, &funscript_base_path) {
         Ok(p) => p,
         Err(e) => {
             error!("Path determination error: {}", e);
@@ -131,17 +131,17 @@ pub async fn handle_funscript(path: web::Path<String>) -> HttpResponse {
 ///
 /// # Arguments
 /// * `requested_video_path` - Relative path to the video file
-/// * `video_base_path` - Base directory for video files
+/// * `funscript_base_path` - Base directory for fun files
 ///
 /// # Returns
 /// * `Ok(PathBuf)` - Full path to the funscript file
 /// * `Err(String)` - Error message if path construction fails
 fn get_funscript_path_for_video(
     requested_video_path: &str,
-    video_base_path: &str,
+    funscript_base_path: &str,
 ) -> Result<PathBuf, String> {
-    let video_path = PathBuf::from(video_base_path).join(requested_video_path);
-    let funscript_path = video_path.with_extension("funscript");
+    let fun_path = PathBuf::from(funscript_base_path).join(requested_video_path);
+    let funscript_path = fun_path.with_extension("funscript");
     Ok(funscript_path)
 }
 

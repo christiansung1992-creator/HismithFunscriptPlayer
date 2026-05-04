@@ -1,8 +1,8 @@
 // static/main.js
 
-import { initDirectoryTree } from './directory_tree.js?v=251';
-import { initWebSocket } from './socket.js?v=251';
-import { createSettingsMenu, toggleSettingsMenu } from './settings_menu.js?v=251';
+import { initDirectoryTree } from './directory_tree.js?v=252';
+import { initWebSocket } from './socket.js?v=252';
+import { createSettingsMenu, toggleSettingsMenu } from './settings_menu.js?v=252';
 
 function createPlayerButton(id, text, rightPos, onClick) {
     let button = document.createElement('button');

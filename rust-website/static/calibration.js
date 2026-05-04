@@ -1,4 +1,6 @@
-import { initWebSocket, sendDeviceCommand } from './socket.js?v=251';
+// static/calibration.js
+
+import { initWebSocket, sendDeviceCommand } from './socket.js?v=252';
 
 const PRESETS = [10, 20, 30, 40, 50];
 const multipliers = {};
@@ -157,7 +159,6 @@ function startCalibration() {
     lastSendTime = Date.now();
     updateSentIntensityDisplay();
 
-    // check frequently for changes, but only send on change or heartbeat every 1s
     sendInterval = setInterval(() => {
         if (!running) return;
         const intensity = computeIntensityNormalized(selectedPreset, multipliers[selectedPreset]);
@@ -166,7 +167,7 @@ function startCalibration() {
             lastSentIntensity = intensity;
             lastSendTime = Date.now();
             updateSentIntensityDisplay();
-        } else if (Date.now() - lastSendTime >= 1000) {
+        } else if (Date.now() - lastSendTime >= 1500) {
             sendDeviceCommand(intensity, 0);
             lastSendTime = Date.now();
         }
@@ -191,11 +192,9 @@ function stopCalibration() {
     elements.stopBtn.disabled = true;
 }
 
-/* pulse removed per request */
-
 function confirmMultiplier() {
     if (!selectedPreset) return;
-    // multipliers already updated live; just show mapping
+    // multipliers already applied
     renderMappingList();
 }
 
