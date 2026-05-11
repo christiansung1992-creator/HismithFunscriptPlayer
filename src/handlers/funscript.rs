@@ -19,11 +19,21 @@ use std::{
     }
 };
 use tokio::fs;
+use serde::Serialize;
 use crate::buttplug::funscript_utils::{
     self, 
     FunscriptData
 };
-use super::types::FunscriptResponse;
+
+/// Response structure for funscript requests containing both original and 
+/// generated intensity data
+#[derive(Serialize, Debug)]
+pub struct FunscriptResponse {
+    /// The original funscript data, if found
+    pub original: Option<FunscriptData>,
+    /// Generated intensity data, if original was found and processing succeeded  
+    pub intensity: Option<FunscriptData>,
+}
 
 /// Handles requests for funscript files and generates intensity data
 ///

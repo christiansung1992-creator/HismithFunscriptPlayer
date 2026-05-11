@@ -1,6 +1,6 @@
 // static/funscript_handler.js
 
-import { getCalibrationMultiplier } from './calibration.js?v=252';
+import { getCalibrationMultiplier } from './calibration.js?v=253';
 
 export let funscriptActions = [];
 export let intensityActions = [];

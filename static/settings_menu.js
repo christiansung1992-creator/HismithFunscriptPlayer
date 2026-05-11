@@ -1,6 +1,6 @@
 // static/settings_menu.js
 
-import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=252';
+import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=253';
 
 export function createSettingsMenu() {
     let settingsMenu = document.getElementById('settings-menu');
@@ -55,7 +55,7 @@ export function createSettingsMenu() {
 
             let resp;
             try {
-                resp = await fetch('/site/static/calibration.html?v=252');
+                resp = await fetch('/site/static/calibration.html?v=253');
             } catch (err) {
                 console.error('Failed to fetch calibration UI', err);
                 alert('Failed to load calibration UI');
@@ -126,7 +126,7 @@ export function createSettingsMenu() {
 
             // dynamic import and initialize the calibration module
             try {
-                const mod = await import('/site/static/calibration.js?v=252');
+                const mod = await import('/site/static/calibration.js?v=253');
                 if (mod && typeof mod.setup === 'function') {
                     mod.setup();
                 }
@@ -172,7 +172,6 @@ export function createSettingsMenu() {
         calibrationButton.onclick = () => openCalibrationOverlay();
         settingsMenu.appendChild(calibrationButton);
 
-        // ...existing code...
         // Add the hard limit input field with lock/unlock
         const hardLimitInputLabel = document.createElement('label');
         hardLimitInputLabel.textContent = 'Max Intensity Limit: ';
@@ -248,6 +247,39 @@ export function createSettingsMenu() {
 
         settingsMenu.appendChild(vibrateModeLabel);
         settingsMenu.appendChild(vibrateModeSelect);
+
+        // button to open the funscript editor for the currently loaded video
+        const editorButton = document.createElement('button');
+        editorButton.id = 'open-editor-button';
+        editorButton.textContent = 'Open Editor';
+        editorButton.style.backgroundColor = 'rgb(70, 70, 70)';
+        editorButton.style.color = 'white';
+        editorButton.style.border = 'none';
+        editorButton.style.padding = '5px 10px';
+        editorButton.style.cursor = 'pointer';
+        editorButton.style.borderRadius = '3px';
+        editorButton.style.marginTop = '10px';
+        editorButton.onclick = () => {
+            const videoEl = document.querySelector('#video-player video');
+            let videoPath = null;
+            if (videoEl && videoEl.src) {
+                try {
+                    const url = new URL(videoEl.src, window.location.origin);
+                    const m = url.pathname.match(/\/site\/video\/(.+)/);
+                    if (m) videoPath = m[1];
+                    else videoPath = url.pathname;
+                } catch (e) {
+                    videoPath = videoEl.getAttribute('src') || videoEl.src || '';
+                }
+            }
+            if (!videoPath) {
+                alert('No video loaded. Open a video from the directory first.');
+                return;
+            }
+            const editorUrl = `/site/editor?video=${encodeURIComponent(videoPath)}`;
+            window.open(editorUrl, '_blank');
+        };
+        settingsMenu.appendChild(editorButton);
 
         document.body.appendChild(settingsMenu);
     }

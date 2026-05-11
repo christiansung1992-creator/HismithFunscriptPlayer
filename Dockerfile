@@ -33,7 +33,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y libsqlite3-0 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from builder
-COPY --from=builder /app/target/release/rust-website /app/rust-website
+COPY --from=builder /app/target/release/hismith-player-site /app/hismith-player-site
 
 # Copy static files and .env
 COPY static ./static
@@ -46,4 +46,4 @@ EXPOSE 5441
 ENV RUST_LOG=info
 
 # Run the application
-CMD ["./rust-website"]
+CMD ["./hismith-player-site"]

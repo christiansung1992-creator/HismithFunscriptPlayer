@@ -174,8 +174,8 @@ pub fn calculate_thrust_intensity_by_scaled_speed(
     condense_identical_positions(&mut actions_vec, 200);
 
     let mut output_actions = Vec::new();
-    let min_time = actions.first().unwrap().at;
-    let max_time = actions.last().unwrap().at;
+    let min_time = actions_vec.first().unwrap().at;
+    let max_time = actions_vec.last().unwrap().at;
 
     // Configuration constants
     const SCALING_FACTOR: f64 = 125.0;        // Speed(%/ms) * 125
@@ -202,7 +202,7 @@ pub fn calculate_thrust_intensity_by_scaled_speed(
         // Calculate raw intensity within window
         let mut raw_intensity = if window_duration_ms > 0 {
             calculate_window_intensity(
-                actions, 
+                &actions_vec, 
                 window_start, 
                 window_end, 
                 window_duration_ms,

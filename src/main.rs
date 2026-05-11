@@ -9,7 +9,7 @@ use actix_web::{
     HttpServer,
     middleware::{DefaultHeaders, Logger}
 };
-use rust_website::{
+use hismith_player_site::{
     routes, 
     buttplug::device_manager,
 };

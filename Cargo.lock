@@ -2852,7 +2852,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-website"
+name = "hismith-player-site"
 version = "0.1.0"
 dependencies = [
  "actix",

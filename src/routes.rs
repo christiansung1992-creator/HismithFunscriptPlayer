@@ -30,18 +30,15 @@ use crate::{
 /// * `cfg` - Service configuration to add routes to
 pub fn setup_routes(cfg: &mut web::ServiceConfig) {
     cfg
-        // WebSocket route for device communication
         .service(
             web::resource("/ws")
                 .route(web::get().to(intiface_socket::handle_ws_start))
         )
-        // search route
         .service(
             web::scope("/api")
                 .route("/directory-tree", web::get().to(index::get_directory_tree))
                 .route("/funscripts", web::post().to(editor::save_funscript))
         )
-        // Main site routes
         .service(
             web::scope("/site")
                 .route("/", web::get().to(index::handle_index))

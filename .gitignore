@@ -1,8 +1,4 @@
 ﻿.vs
-rust-website/target
-rust-website/videos
-rust-website/.env
+.env
 .DS_Store
-rust-website/run.sh
-rust-website/predefined_tags.txt
-rust-website/videos.db
+run.sh
