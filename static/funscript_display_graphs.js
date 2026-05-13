@@ -1,7 +1,7 @@
 // static/funscript_display_graphs.js
 
 import { getAbsoluteMaximum, getAbsoluteMaximumInverseCalibrated, funscriptActions, intensityActions, 
-    getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=253';
+    getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=255';
 
 export function createFunscriptDisplayBox() {
     let funscriptBox = document.getElementById('funscript-box');
@@ -125,8 +125,8 @@ export function updateFunscriptDisplayBox(currentTime) {
         const prev = funscriptActions[i - 1];
 
         if (
-            current.pos === 0 &&
-            prev && prev.pos === 100 &&
+            current.pos === 100 &&
+            prev && prev.pos === 0 &&
             current.at >= startTime &&
             current.at <= (currentTime + range)
         ) {

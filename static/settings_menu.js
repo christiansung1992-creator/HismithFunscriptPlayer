@@ -1,6 +1,6 @@
 // static/settings_menu.js
 
-import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=253';
+import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode } from './funscript_handler.js?v=255';
 
 export function createSettingsMenu() {
     let settingsMenu = document.getElementById('settings-menu');
@@ -55,7 +55,7 @@ export function createSettingsMenu() {
 
             let resp;
             try {
-                resp = await fetch('/site/static/calibration.html?v=253');
+                resp = await fetch('/site/static/calibration.html?v=255');
             } catch (err) {
                 console.error('Failed to fetch calibration UI', err);
                 alert('Failed to load calibration UI');
@@ -126,7 +126,7 @@ export function createSettingsMenu() {
 
             // dynamic import and initialize the calibration module
             try {
-                const mod = await import('/site/static/calibration.js?v=253');
+                const mod = await import('/site/static/calibration.js?v=255');
                 if (mod && typeof mod.setup === 'function') {
                     mod.setup();
                 }

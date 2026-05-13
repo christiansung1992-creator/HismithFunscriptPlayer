@@ -14,6 +14,7 @@ const ctx = canvas.getContext('2d');
 let tapTimestamps = [];
 let selectedTimestamps = new Set();
 let videoPath = '';
+let editorAnimationFrame = null;
 
 // Interaction State
 let isDragging = false;
@@ -27,7 +28,6 @@ let dragOffsetMs = 0;
 const VIEW_WINDOW_MS = 10000; // 10 seconds of timeline visible
 const CLICK_RADIUS_MS = 100; // Click tolerance in milliseconds
 
-// --- Main Functions ---
 async function init() {
     const urlParams = new URLSearchParams(window.location.search);
     videoPath = urlParams.get('video');
@@ -69,12 +69,14 @@ function setupEventListeners() {
         }
     });
 
-    videoElement.addEventListener('timeupdate', drawVisualizer);
+    videoElement.addEventListener('play', startEditorRaf);
+    videoElement.addEventListener('pause', stopEditorRaf);
+    videoElement.addEventListener('seeked', drawVisualizer);
     window.addEventListener('resize', resizeCanvas);
     setupCanvasEventListeners();
 }
 
-// --- Funscript Logic ---
+// Funscript Logic
 function updateCounter() {
     actionCounter.textContent = `Taps: ${tapTimestamps.length}`;
 }
@@ -157,9 +159,8 @@ async function handleSave() {
 }
 
 
-// --- User Actions ---
+// User Actions
 function handleTap() {
-    if (videoElement.paused) return;
     const currentTime = Math.round(videoElement.currentTime * 1000);
     tapTimestamps.push(currentTime);
     tapTimestamps.sort((a, b) => a - b);
@@ -184,7 +185,23 @@ function handleDeleteSelected() {
 }
 
 
-// --- Canvas Drawing ---
+// Canvas Drawing
+function startEditorRaf() {
+    if (editorAnimationFrame) cancelAnimationFrame(editorAnimationFrame);
+    const loop = () => {
+        drawVisualizer();
+        editorAnimationFrame = requestAnimationFrame(loop);
+    };
+    editorAnimationFrame = requestAnimationFrame(loop);
+}
+
+function stopEditorRaf() {
+    if (editorAnimationFrame) {
+        cancelAnimationFrame(editorAnimationFrame);
+        editorAnimationFrame = null;
+    }
+}
+
 function drawVisualizer() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -217,7 +234,7 @@ function drawVisualizer() {
     });
 
     // Draw playhead
-    const playheadX = canvas.width / 2;
+    const playheadX = msToPx(currentTime);
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
     ctx.lineTo(playheadX, canvas.height);
@@ -234,7 +251,7 @@ function drawVisualizer() {
 }
 
 
-// --- Canvas Interactions ---
+// Canvas Interactions
 function setupCanvasEventListeners() {
     const msToPx = (ms) => {
         const viewStartMs = Math.max(0, (videoElement.currentTime * 1000) - (VIEW_WINDOW_MS / 2));
