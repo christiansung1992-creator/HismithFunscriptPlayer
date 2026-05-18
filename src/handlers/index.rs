@@ -16,8 +16,9 @@ use std::{env, path::PathBuf};
 /// * `Ok(NamedFile)` - A file responder for the `index.html` file.
 /// * `Err(Error)` - An error if the file cannot be found or accessed.
 pub async fn handle_index() -> Result<NamedFile> {
-    info!("Serving static index page");
-    Ok(NamedFile::open("./static/index.html")?)
+    Ok(NamedFile::open("./static/index.html")?
+        .customize()
+        .insert_header(("Cache-Control", "no-cache")))
 }
 
 /// API endpoint to get the directory structure as JSON.

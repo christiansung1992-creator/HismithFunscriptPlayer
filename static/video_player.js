@@ -1,10 +1,10 @@
 // static/video_player.js
 
-import { loadFunscript, getCurrentIntensity, getCurrentVideoMaxIntensity, getVibrateMode, getCurrentBeatValue, setSelectedFunscriptVariant } from './funscript_handler.js?v=260';
-import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_display_graphs.js?v=260';
-import { sendDeviceCommand } from './socket.js?v=260';
-import { getCalibrationMultiplier } from './calibration.js?v=260';
-import { refreshVariantsForCurrentVideo } from './settings_menu.js?v=260';
+import { loadFunscript, getCurrentIntensity, getCurrentVideoMaxIntensity, getVibrateMode, getCurrentBeatValue, setSelectedFunscriptVariant } from './funscript_handler.js';
+import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_display_graphs.js';
+import { sendDeviceCommand } from './socket.js';
+import { getCalibrationMultiplier } from './calibration.js';
+import { refreshVariantsForCurrentVideo } from './settings_menu.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DISABLE_FULLSCREEN = ['1', 'true', 'yes'].includes((urlParams.get('no_fullscreen') || '').toLowerCase());

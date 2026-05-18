@@ -1,6 +1,6 @@
 // static/socket.js
 
-import { getAbsoluteMaximum, getVibrateMode } from './funscript_handler.js?v=260';
+import { getAbsoluteMaximum, getVibrateMode } from './funscript_handler.js';
 
 let ws = null;
 

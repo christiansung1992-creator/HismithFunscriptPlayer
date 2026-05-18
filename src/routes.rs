@@ -46,12 +46,15 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
                 .route("/calibration", web::get().to(calibration::handle_calibration_page))
                 .route("/video/{filename:.*}", web::get().to(video::handle_video))
                 .route("/funscripts/{filename:.*}", web::get().to(funscript::handle_funscript))
-                // Static file serving configuration
                 .service(
-                    Files::new("/static", "./static")
-                        .show_files_listing()
-                        .use_last_modified(true)
-                        .prefer_utf8(true)
+                    web::scope("/static")
+                        .wrap(DefaultHeaders::new().add(("Cache-Control", "no-cache")))
+                        .default_service(
+                            Files::new("", "./static")
+                                .show_files_listing()
+                                .use_last_modified(true)
+                                .prefer_utf8(true)
+                        )
                 )
         );
 }

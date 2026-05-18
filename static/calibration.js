@@ -1,6 +1,6 @@
 // static/calibration.js
 
-import { initWebSocket, sendDeviceCommand } from './socket.js?v=260';
+import { initWebSocket, sendDeviceCommand } from './socket.js';
 
 const PRESETS = [10, 20, 30, 40, 50];
 const multipliers = {};

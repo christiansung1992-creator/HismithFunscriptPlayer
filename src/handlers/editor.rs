@@ -8,7 +8,9 @@ use tokio::fs;
 use crate::buttplug::funscript_utils::{Action, FunscriptData};
 
 pub async fn handle_editor_page() -> Result<NamedFile, Error> {
-    Ok(NamedFile::open("./static/editor.html")?)
+    Ok(NamedFile::open("./static/editor.html")?
+        .customize()
+        .insert_header(("Cache-Control", "no-cache")))
 }
 
 #[derive(Deserialize, Debug)]
