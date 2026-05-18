@@ -6,28 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Calibration</title>
-    <link rel="stylesheet" href="/site/static/styles.css?v=258">
-    <style>
-        body,html { height:100%; margin:0; display:flex; align-items:center; justify-content:center; background:#252525; color:#ddd; }
-        .card { width:520px; background:#2d2d2d; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.4); }
-        .controls { display:flex; gap:10px; margin-top:12px; align-items:center; flex-wrap:wrap; }
-        .preset-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
-        .preset-btn { padding:8px 12px; border-radius:6px; border:0; cursor:pointer; color:#fff; background:#464646; }
-        .preset-btn.active { background:#0078d7; }
-        .preset-btn.inactive { opacity:0.55; background:#333; }
-        /* spinner / ring */
-        #spinner-wrap { position:relative; display:flex; align-items:center; justify-content:center; margin:12px 0; height:120px; }
-        #calibration-spinner { width:80px; height:80px; border-radius:50%; background:linear-gradient(90deg,#444,#666); position:relative; box-shadow:0 3px 8px rgba(0,0,0,0.6); }
-        #calibration-spinner::after { content:""; position:absolute; left:50%; top:6px; width:8px; height:28px; background:#ffd54f; transform:translateX(-50%); border-radius:4px; }
-        /* Outer compass ring with 12 ticks */
-        .spinner-ring { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:120px; height:120px; pointer-events:none; }
-        .spinner-ring .tick { position:absolute; left:50%; top:50%; width:6px; height:16px; background:#ffd54f; border-radius:3px; opacity:0.95; box-shadow:0 1px 2px rgba(0,0,0,0.4); transform-origin:center center; }
-        .small { font-size:0.9em; color:#bbb; }
-        .row { display:flex; gap:10px; align-items:center; }
-        input[type=range] { width:260px; }
-        .muted { color:#aaa; font-size:0.9em; }
-        #mapping-list { margin-top:10px; font-family:monospace; color:#fff; }
-    </style>
+    <link rel="stylesheet" href="/site/static/styles.css?v=260">
 </head>
 <body>
     <div class="card">
@@ -37,7 +16,6 @@
         <div class="preset-row" id="preset-buttons"></div>
 
         <div id="spinner-wrap">
-            <!-- non-rotating ring of 12 ticks (compass-like) -->
             <div class="spinner-ring" aria-hidden="true">
                 <div class="tick" style="transform: translate(-50%,-50%) rotate(0deg) translateY(-52px);"></div>
                 <div class="tick" style="transform: translate(-50%,-50%) rotate(30deg) translateY(-52px);"></div>
@@ -85,7 +63,7 @@
     </div>
 
     <script type="module">
-        import { setup } from '/site/static/calibration.js?v=258';
+        import { setup } from '/site/static/calibration.js?v=260';
         document.addEventListener('DOMContentLoaded', setup);
     </script>
 </body>

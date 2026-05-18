@@ -7,104 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Funscript Editor</title>
-    <link rel="stylesheet" href="/site/static/styles.css?v=258">
-    <style>
-        body,
-        html {
-            overflow: hidden;
-            background-color: #252525;
-        }
-
-        #editor-container {
-            display: flex;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        #video-section {
-            flex: 3;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background-color: #000;
-            position: relative;
-        }
-
-        #editor-video {
-            width: 100%;
-            height: 80%;
-            max-height: 80%;
-        }
-
-        #editor-canvas {
-            width: 100%;
-            height: 20%;
-            background-color: #1a1a1a;
-            cursor: crosshair;
-        }
-
-        #controls-section {
-            flex: 1;
-            padding: 20px;
-            background-color: #323232;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow-y: auto;
-        }
-
-        #controls-section h1 {
-            text-align: left;
-            margin-bottom: 0;
-        }
-
-        #controls-section button,
-        #controls-section a {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.2em;
-            border-radius: 5px;
-            text-align: center;
-            border: none;
-            cursor: pointer;
-        }
-
-        #tap-button {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        #undo-button,
-        #delete-button {
-            background-color: #f44336;
-            color: white;
-        }
-
-        #save-button {
-            background-color: #008CBA;
-            color: white;
-        }
-
-        #save-button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-        }
-
-        #back-link {
-            background-color: #555;
-            color: white;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        #action-counter {
-            font-size: 1.1em;
-            text-align: center;
-            color: #f0f0f0;
-            margin-top: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="/site/static/styles.css?v=260">
 </head>
 
 <body>
@@ -119,16 +22,15 @@
             <label style="color:#ddd;">Variant (optional)</label>
             <input id="variant-input" list="variant-list" type="text" placeholder="e.g. low, high" style="width:100%; padding:8px; border-radius:4px; border:1px solid #555; background:#222; color:#fff; margin-bottom:10px;" />
             <datalist id="variant-list"></datalist>
-            <button id="tap-button">Tap Thrust</button>
-            <button id="undo-button">Undo Last Tap</button>
-            <button id="delete-button">Delete Selected</button>
-            <button id="save-button">Save Funscript</button>
+            <button id="tap-button" class="btn">Tap Thrust</button>
+            <button id="undo-button" class="btn">Undo Last Tap</button>
+            <button id="delete-button" class="btn">Delete Selected</button>
+            <button id="save-button" class="btn">Save Funscript</button>
             <a href="/site/" id="back-link">Back to Player</a>
             <div id="action-counter">Taps: 0</div>
         </div>
     </div>
-    <script src="/site/static/editor.js?v=258" type="module"></script>
+    <script src="/site/static/editor.js?v=260" type="module"></script>
 </body>
 
 </html>
-```

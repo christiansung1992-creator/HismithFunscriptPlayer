@@ -1,23 +1,15 @@
 // static/main.js
 
-import { initDirectoryTree } from './directory_tree.js?v=258';
-import { initWebSocket } from './socket.js?v=258';
-import { createSettingsMenu, toggleSettingsMenu } from './settings_menu.js?v=258';
+import { initDirectoryTree } from './directory_tree.js?v=260';
+import { initWebSocket } from './socket.js?v=260';
+import { createSettingsMenu, toggleSettingsMenu } from './settings_menu.js?v=260';
 
 function createPlayerButton(id, text, rightPos, onClick) {
     let button = document.createElement('button');
     button.id = id;
     button.textContent = text;
-    button.style.position = 'absolute';
-    button.style.top = '10px';
+    button.className = 'player-button btn';
     button.style.right = rightPos;
-    button.style.backgroundColor = 'rgb(70, 70, 70)';
-    button.style.color = 'white';
-    button.style.border = 'none';
-    button.style.padding = '10px 20px';
-    button.style.cursor = 'pointer';
-    button.style.borderRadius = '5px';
-    button.style.zIndex = '10';
     button.style.display = 'none'; // Buttons are hidden until a video plays
     button.onclick = onClick;
     document.body.appendChild(button);

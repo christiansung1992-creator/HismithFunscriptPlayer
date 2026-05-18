@@ -1,35 +1,19 @@
 // static/settings_menu.js
 
-import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode, loadFunscript, setSelectedFunscriptVariant, getSelectedFunscriptVariant } from './funscript_handler.js?v=258';
+import { setAbsoluteMaximum, getAbsoluteMaximum, setVibrateMode, loadFunscript, setSelectedFunscriptVariant, getSelectedFunscriptVariant } from './funscript_handler.js?v=260';
 
 export function createSettingsMenu() {
     let settingsMenu = document.getElementById('settings-menu');
     if (!settingsMenu) {
         settingsMenu = document.createElement('div');
         settingsMenu.id = 'settings-menu';
-        settingsMenu.style.position = 'absolute';
-        settingsMenu.style.top = '60px';
-        settingsMenu.style.right = '10px';
-        settingsMenu.style.width = '250px';
-        settingsMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-        settingsMenu.style.color = 'white';
-        settingsMenu.style.padding = '10px';
-        settingsMenu.style.borderRadius = '5px';
-        settingsMenu.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
-        settingsMenu.style.display = 'none'; // Hidden by default
-        settingsMenu.style.zIndex = '10';
+        settingsMenu.className = 'settings-menu';
 
-        // Add the loop toggle button
+        // Loop toggle
         const loopToggle = document.createElement('button');
         loopToggle.id = 'loop-toggle';
         loopToggle.textContent = 'Loop: Off';
-        loopToggle.style.backgroundColor = 'rgb(70, 70, 70)';
-        loopToggle.style.color = 'white';
-        loopToggle.style.border = 'none';
-        loopToggle.style.padding = '5px 10px';
-        loopToggle.style.cursor = 'pointer';
-        loopToggle.style.borderRadius = '3px';
-        loopToggle.style.marginBottom = '10px';
+        loopToggle.className = 'btn';
         loopToggle.onclick = () => {
             const videoElement = document.querySelector('video');
             videoElement.loop = !videoElement.loop;
@@ -37,14 +21,14 @@ export function createSettingsMenu() {
         };
         settingsMenu.appendChild(loopToggle);
 
+        // Variant label + select + refresh
         const variantLabel = document.createElement('label');
         variantLabel.textContent = 'Funscript Variant: ';
-        variantLabel.style.display = 'block';
-        variantLabel.style.marginTop = '10px';
-        variantLabel.style.marginBottom = '5px';
+        variantLabel.className = 'settings-label';
 
         const variantSelect = document.createElement('select');
         variantSelect.id = 'funscript-variant-select';
+        variantSelect.className = 'settings-select';
         const optDefault = document.createElement('option');
         optDefault.value = 'original';
         optDefault.text = 'original';
@@ -56,50 +40,33 @@ export function createSettingsMenu() {
             // Reload funscript for current video (if any)
             const videoEl = document.querySelector('#video-player video');
             if (videoEl && videoEl.src) {
-                try {
-                    const url = new URL(videoEl.src, window.location.origin);
-                    const m = url.pathname.match(/\/site\/video\/(.+)/);
-                    const videoPath = m ? m[1] : url.pathname;
-                    const baseFunscript = `/site/funscripts/${videoPath.replace(/\.[^/.]+$/, ".funscript")}`;
-                    loadFunscript(baseFunscript);
-                } catch (e) {
-                    // ignore
-                }
+                const url = new URL(videoEl.src, window.location.origin);
+                const m = url.pathname.match(/\/site\/video\/(.+)/);
+                const videoPath = m ? m[1] : url.pathname;
+                const baseFunscript = `/site/funscripts/${videoPath.replace(/\.[^/.]+$/, ".funscript")}`;
+                loadFunscript(baseFunscript);
             }
         };
 
         const refreshBtn = document.createElement('button');
         refreshBtn.id = 'refresh-variants-button';
         refreshBtn.textContent = 'Refresh';
-        refreshBtn.style.backgroundColor = 'rgb(70, 70, 70)';
-        refreshBtn.style.color = 'white';
-        refreshBtn.style.border = 'none';
-        refreshBtn.style.padding = '5px 10px';
-        refreshBtn.style.cursor = 'pointer';
-        refreshBtn.style.borderRadius = '3px';
-        refreshBtn.style.marginLeft = '6px';
+        refreshBtn.className = 'btn btn-sm';
         refreshBtn.onclick = () => refreshVariantsForCurrentVideo();
 
         const variantRow = document.createElement('div');
-        variantRow.style.display = 'flex';
-        variantRow.style.gap = '6px';
+        variantRow.className = 'variant-row';
         variantRow.appendChild(variantSelect);
         variantRow.appendChild(refreshBtn);
 
         settingsMenu.appendChild(variantLabel);
         settingsMenu.appendChild(variantRow);
 
-        // Add a Calibration button (opens an overlay instead of navigating away)
+        // Calibration button (opens overlay)
         const calibrationButton = document.createElement('button');
         calibrationButton.id = 'calibration-button';
         calibrationButton.textContent = 'Calibration';
-        calibrationButton.style.backgroundColor = 'rgb(70, 70, 70)';
-        calibrationButton.style.color = 'white';
-        calibrationButton.style.border = 'none';
-        calibrationButton.style.padding = '5px 10px';
-        calibrationButton.style.cursor = 'pointer';
-        calibrationButton.style.borderRadius = '3px';
-        calibrationButton.style.marginBottom = '10px';
+        calibrationButton.className = 'btn btn-sm';
 
         // open overlay handler
         async function openCalibrationOverlay() {
@@ -107,7 +74,7 @@ export function createSettingsMenu() {
 
             let resp;
             try {
-                resp = await fetch('/site/static/calibration.html?v=258');
+                resp = await fetch('/site/static/calibration.html?v=260');
             } catch (err) {
                 console.error('Failed to fetch calibration UI', err);
                 alert('Failed to load calibration UI');
@@ -136,28 +103,17 @@ export function createSettingsMenu() {
             // create overlay
             const overlay = document.createElement('div');
             overlay.id = 'calibration-overlay';
-            Object.assign(overlay.style, {
-                position: 'fixed',
-                left: '0',
-                top: '0',
-                right: '0',
-                bottom: '0',
-                backgroundColor: 'rgba(0,0,0,0.6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: '9999',
-                padding: '20px',
-            });
+            overlay.className = 'calibration-overlay';
 
             const inner = document.createElement('div');
-            inner.style.position = 'relative';
+            inner.className = 'calibration-inner';
             inner.innerHTML = card;
 
             // close (X) button
             const closeBtn = document.createElement('button');
             closeBtn.textContent = '✕';
             closeBtn.title = 'Close';
+            closeBtn.className = 'btn btn-sm';
             Object.assign(closeBtn.style, {
                 position: 'absolute',
                 top: '-12px',
@@ -178,7 +134,7 @@ export function createSettingsMenu() {
 
             // dynamic import and initialize the calibration module
             try {
-                const mod = await import('/site/static/calibration.js?v=258');
+                const mod = await import('/site/static/calibration.js?v=260');
                 if (mod && typeof mod.setup === 'function') {
                     mod.setup();
                 }
@@ -224,24 +180,15 @@ export function createSettingsMenu() {
         calibrationButton.onclick = () => openCalibrationOverlay();
         settingsMenu.appendChild(calibrationButton);
 
-        // Add the hard limit input field with lock/unlock
+        // Hard limit input with lock
         const hardLimitInputLabel = document.createElement('label');
+        hardLimitInputLabel.className = 'settings-label';
         hardLimitInputLabel.textContent = 'Max Intensity Limit: ';
-        hardLimitInputLabel.style.display = 'block';
-        hardLimitInputLabel.style.marginBottom = '5px';
-        hardLimitInputLabel.style.pointerEvents = 'none'; // Ensure the button itself is clickable
 
         const hardLimitLockButton = document.createElement('button');
         hardLimitLockButton.id = 'hard-limit-lock-button';
         hardLimitLockButton.textContent = 'Unlock';
-        hardLimitLockButton.style.backgroundColor = 'rgb(70, 70, 70)';
-        hardLimitLockButton.style.color = 'white';
-        hardLimitLockButton.style.border = 'none';
-        hardLimitLockButton.style.padding = '5px 10px';
-        hardLimitLockButton.style.cursor = 'pointer';
-        hardLimitLockButton.style.borderRadius = '3px';
-        hardLimitLockButton.style.marginBottom = '10px';
-        hardLimitLockButton.style.pointerEvents = 'auto'; // Ensure the button itself is clickable
+        hardLimitLockButton.className = 'btn btn-sm';
 
         const hardLimitInput = document.createElement('input');
         hardLimitInput.id = 'hard-limit-input';
@@ -249,18 +196,18 @@ export function createSettingsMenu() {
         hardLimitInput.min = '0';
         hardLimitInput.max = '100';
         hardLimitInput.value = getAbsoluteMaximum().toString();
-        hardLimitInput.style.width = '100%';
-        hardLimitInput.disabled = true; // Initially disabled
+        hardLimitInput.className = 'settings-input';
+        hardLimitInput.disabled = true;
 
         hardLimitLockButton.onclick = () => {
             if (hardLimitInput.disabled) {
                 hardLimitInput.disabled = false;
                 hardLimitLockButton.textContent = 'Lock';
-                hardLimitInputLabel.style.pointerEvents = 'auto';
+                hardLimitLockButton.classList.remove('locked');
             } else {
                 hardLimitInput.disabled = true;
                 hardLimitLockButton.textContent = 'Unlock';
-                hardLimitInputLabel.style.pointerEvents = 'none';
+                hardLimitLockButton.classList.add('locked');
             }
         };
 
@@ -274,25 +221,26 @@ export function createSettingsMenu() {
             }
         };
 
-        hardLimitInputLabel.appendChild(hardLimitLockButton); // Add the lock button next to the label
-        hardLimitInputLabel.appendChild(hardLimitInput); // Add the input field
+        hardLimitInputLabel.appendChild(hardLimitLockButton);
+        hardLimitInputLabel.appendChild(hardLimitInput);
         settingsMenu.appendChild(hardLimitInputLabel);
 
+        // Vibrate mode
         const vibrateModeLabel = document.createElement('label');
         vibrateModeLabel.textContent = 'Vibrate Mode: ';
-        vibrateModeLabel.style.display = 'block';
-        vibrateModeLabel.style.marginBottom = '5px';
+        vibrateModeLabel.className = 'settings-label';
 
         const vibrateModeSelect = document.createElement('select');
         vibrateModeSelect.id = 'vibrate-mode-select';
+        vibrateModeSelect.className = 'settings-select';
         ['Rate', 'Beat'].forEach(mode => {
             const option = document.createElement('option');
-            option.value = mode.toLowerCase();
+            option.value = mode; // keep the same capitalization used across the app
             option.textContent = mode;
             vibrateModeSelect.appendChild(option);
         });
-        vibrateModeSelect.value = 'Rate';
-
+        vibrateModeSelect.value = getSelectedFunscriptVariant() ? getSelectedFunscriptVariant() : 'Rate';
+        vibrateModeSelect.value = (typeof window !== 'undefined' && window.getVibrateMode) ? window.getVibrateMode() : 'Rate';
         vibrateModeSelect.onchange = () => {
             setVibrateMode(vibrateModeSelect.value);
         };
@@ -300,16 +248,11 @@ export function createSettingsMenu() {
         settingsMenu.appendChild(vibrateModeLabel);
         settingsMenu.appendChild(vibrateModeSelect);
 
-        // button to open the funscript editor for the currently loaded video
+        // Open editor for current video
         const editorButton = document.createElement('button');
         editorButton.id = 'open-editor-button';
         editorButton.textContent = 'Open Editor';
-        editorButton.style.backgroundColor = 'rgb(70, 70, 70)';
-        editorButton.style.color = 'white';
-        editorButton.style.border = 'none';
-        editorButton.style.padding = '5px 10px';
-        editorButton.style.cursor = 'pointer';
-        editorButton.style.borderRadius = '3px';
+        editorButton.className = 'btn';
         editorButton.style.marginTop = '10px';
         editorButton.onclick = () => {
             const videoEl = document.querySelector('#video-player video');
@@ -342,13 +285,10 @@ export function createSettingsMenu() {
 function currentVideoPathFromPlayer() {
     const videoEl = document.querySelector('#video-player video');
     if (!videoEl || !videoEl.src) return null;
-    try {
-        const url = new URL(videoEl.src, window.location.origin);
-        const m = url.pathname.match(/\/site\/video\/(.+)/);
-        return m ? m[1] : url.pathname;
-    } catch (e) {
-        return null;
-    }
+
+    const url = new URL(videoEl.src, window.location.origin);
+    const m = url.pathname.match(/\/site\/video\/(.+)/);
+    return m ? m[1] : url.pathname;
 }
 
 export async function refreshVariantsForCurrentVideo() {
@@ -393,12 +333,39 @@ export async function refreshVariantsForCurrentVideo() {
 }
 
 export function toggleSettingsMenu() {
-    const settingsMenu = document.getElementById('settings-menu');
-    if (settingsMenu) {
-        const willShow = settingsMenu.style.display === 'none';
-        settingsMenu.style.display = willShow ? 'block' : 'none';
-        if (willShow) {
-            setTimeout(() => refreshVariantsForCurrentVideo(), 80);
-        }
+    // ensure the menu exists (robust if createSettingsMenu wasn't run)
+    let settingsMenu = document.getElementById('settings-menu');
+    if (!settingsMenu) settingsMenu = createSettingsMenu();
+
+    // toggle visibility via class to avoid computed/inline display race
+    const opened = settingsMenu.classList.toggle('visible');
+
+    if (opened) {
+        document.body.style.overflow = 'hidden';
+
+        // close on outside click or Escape (one-time handlers)
+        const onDocClick = (e) => {
+            if (!settingsMenu.contains(e.target)) {
+                settingsMenu.classList.remove('visible');
+                document.body.style.overflow = '';
+                document.removeEventListener('click', onDocClick);
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                settingsMenu.classList.remove('visible');
+                document.body.style.overflow = '';
+                document.removeEventListener('click', onDocClick);
+                document.removeEventListener('keydown', onKey);
+            }
+        };
+        // attach after a tick so the click that opened it doesn't immediately close it
+        setTimeout(() => {
+            document.addEventListener('click', onDocClick);
+            document.addEventListener('keydown', onKey);
+        }, 0);
+    } else {
+        document.body.style.overflow = '';
     }
 }

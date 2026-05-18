@@ -1,10 +1,10 @@
 // static/video_player.js
 
-import { loadFunscript, getCurrentIntensity, getCurrentVideoMaxIntensity, getVibrateMode, getCurrentBeatValue, setSelectedFunscriptVariant } from './funscript_handler.js?v=258';
-import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_display_graphs.js?v=258';
-import { sendDeviceCommand } from './socket.js?v=258';
-import { getCalibrationMultiplier } from './calibration.js?v=258';
-import { refreshVariantsForCurrentVideo } from './settings_menu.js?v=258';
+import { loadFunscript, getCurrentIntensity, getCurrentVideoMaxIntensity, getVibrateMode, getCurrentBeatValue, setSelectedFunscriptVariant } from './funscript_handler.js?v=260';
+import { createFunscriptDisplayBox, updateFunscriptDisplayBox } from './funscript_display_graphs.js?v=260';
+import { sendDeviceCommand } from './socket.js?v=260';
+import { getCalibrationMultiplier } from './calibration.js?v=260';
+import { refreshVariantsForCurrentVideo } from './settings_menu.js?v=260';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DISABLE_FULLSCREEN = ['1', 'true', 'yes'].includes((urlParams.get('no_fullscreen') || '').toLowerCase());
@@ -34,17 +34,7 @@ export async function playVideo(videoUrl, funscriptUrl) {
     if (!spinner) {
         spinner = document.createElement('div');
         spinner.id = 'loading-spinner';
-        spinner.style.position = 'absolute';
-        spinner.style.top = '50%';
-        spinner.style.left = '50%';
-        spinner.style.transform = 'translate(-50%, -50%)';
-        spinner.style.border = '8px solid #f3f3f3';
-        spinner.style.borderTop = '8px solid #3498db';
-        spinner.style.borderRadius = '50%';
-        spinner.style.width = '50px';
-        spinner.style.height = '50px';
-        spinner.style.animation = 'spin 1s linear infinite';
-        spinner.style.zIndex = '20';
+        spinner.className = 'loading-spinner';
         videoPlayer.appendChild(spinner);
     }
     spinner.style.display = 'block'; // Show spinner

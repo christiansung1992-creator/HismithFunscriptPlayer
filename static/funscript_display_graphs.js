@@ -1,7 +1,7 @@
 // static/funscript_display_graphs.js
 
 import { getAbsoluteMaximum, getAbsoluteMaximumInverseCalibrated, funscriptActions, intensityActions, 
-    getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=258';
+    getCurrentIntensity, getCurrentVideoMaxIntensity, getCurrentIntensityUnclamped } from './funscript_handler.js?v=260';
 
 export function createFunscriptDisplayBox() {
     let funscriptBox = document.getElementById('funscript-box');
