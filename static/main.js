@@ -48,9 +48,14 @@ async function main() {
         }
         const payload = await response.json();
         const directoryTreeData = payload.tree || payload;
+        const funscriptMap = payload.funscripts || {}; // pass funscript cache info
         const directoryTreeContainer =
             document.getElementById('directory-tree');
-        initDirectoryTree(directoryTreeData, directoryTreeContainer);
+        initDirectoryTree(
+            directoryTreeData,
+            directoryTreeContainer,
+            funscriptMap
+        );
     } catch (error) {
         console.error(error);
         document.getElementById('directory-tree').innerHTML =
