@@ -27,21 +27,16 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
         .service(
             web::scope("/api")
                 .route("/directory-tree", web::get().to(index::get_directory_tree))
-                .route("/funscripts", web::post().to(editor::save_funscript)),
+                .route("/funscripts", web::post().to(editor::save_funscript))
+                .route("/calibration-mapping", web::get().to(calibration::get_bpm_mapping))
         )
         .service(
             web::scope("/site")
                 .route("/", web::get().to(index::handle_index))
                 .route("/editor", web::get().to(editor::handle_editor_page))
-                .route(
-                    "/calibration",
-                    web::get().to(calibration::handle_calibration_page),
-                )
+                .route("/calibration", web::get().to(calibration::handle_calibration_page))
                 .route("/video/{filename:.*}", web::get().to(video::handle_video))
-                .route(
-                    "/funscripts/{filename:.*}",
-                    web::get().to(funscript::handle_funscript),
-                )
+                .route("/funscripts/{filename:.*}", web::get().to(funscript::handle_funscript))
                 .service(
                     web::scope("/static")
                         .wrap(DefaultHeaders::new().add(("Cache-Control", "no-cache")))
@@ -49,8 +44,8 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
                             Files::new("", "./static")
                                 .show_files_listing()
                                 .use_last_modified(true)
-                                .prefer_utf8(true),
-                        ),
-                ),
+                                .prefer_utf8(true)
+                        )
+                )
         );
 }

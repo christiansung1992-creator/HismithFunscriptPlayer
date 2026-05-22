@@ -52,6 +52,7 @@ pub struct FunscriptData {
 fn default_version() -> String {
     "1.0".to_string()
 }
+
 fn default_range() -> u32 {
     100
 }
@@ -66,6 +67,38 @@ impl Default for FunscriptData {
             metadata: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BpmIntensityPoint {
+    pub bpm: f64,
+    pub intensity: f64,
+}
+
+/// BPM -> intensity calibration table
+pub const BPM_INTENSITY_MAP: [(f64, f64); 11] = [
+    (0.0, 0.0),
+    (42.0, 10.0),
+    (66.0, 20.0),
+    (90.0, 30.0),
+    (116.0, 40.0),
+    (140.0, 50.0),
+    (160.0, 60.0),
+    (182.0, 70.0),
+    (218.0, 80.0),
+    (245.0, 90.0),
+    (270.0, 100.0),
+];
+
+/// Returns the calibration mapping as a JSON-serializable Vec
+pub fn get_bpm_intensity_mapping() -> Vec<BpmIntensityPoint> {
+    BPM_INTENSITY_MAP
+        .iter()
+        .map(|(b, i)| BpmIntensityPoint {
+            bpm: *b,
+            intensity: *i,
+        })
+        .collect()
 }
 
 /// Calculates the interpolated position at a given time between two actions
@@ -256,33 +289,18 @@ pub fn calculate_thrust_intensity_by_scaled_speed(
 /// Maps measured BPM to calibrated intensity (0..100) using piecewise linear interpolation.
 /// NO ATTACHMENTS, just simple hismith machine
 fn map_bpm_to_intensity(bpm: f64) -> f64 {
-    // Calibration pairs (bpm, intensity)
-    const MAPPING: [(f64, f64); 11] = [
-        (0.0, 0.0),
-        (42.0, 10.0),
-        (66.0, 20.0),
-        (90.0, 30.0),
-        (116.0, 40.0),
-        (140.0, 50.0),
-        (160.0, 60.0),
-        (182.0, 70.0),
-        (218.0, 80.0),
-        (245.0, 90.0),
-        (270.0, 100.0),
-    ];
-
     if !bpm.is_finite() {
         return 0.0;
     }
-    if bpm <= MAPPING[0].0 {
-        return MAPPING[0].1;
+    if bpm <= BPM_INTENSITY_MAP[0].0 {
+        return BPM_INTENSITY_MAP[0].1;
     }
-    if bpm >= MAPPING[MAPPING.len() - 1].0 {
-        return MAPPING[MAPPING.len() - 1].1;
+    if bpm >= BPM_INTENSITY_MAP[BPM_INTENSITY_MAP.len() - 1].0 {
+        return BPM_INTENSITY_MAP[BPM_INTENSITY_MAP.len() - 1].1;
     }
-    for i in 0..(MAPPING.len() - 1) {
-        let (b0, i0) = MAPPING[i];
-        let (b1, i1) = MAPPING[i + 1];
+    for i in 0..(BPM_INTENSITY_MAP.len() - 1) {
+        let (b0, i0) = BPM_INTENSITY_MAP[i];
+        let (b1, i1) = BPM_INTENSITY_MAP[i + 1];
         if bpm >= b0 && bpm <= b1 {
             let t = (bpm - b0) / (b1 - b0);
             return i0 + (i1 - i0) * t;

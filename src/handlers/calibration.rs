@@ -1,10 +1,15 @@
 // src/handlers/calibration.rs
 
 use actix_files::NamedFile;
-use actix_web::{Error, Responder};
+use actix_web::{Error, Responder, HttpResponse};
 
 pub async fn handle_calibration_page() -> Result<impl Responder, Error> {
     Ok(NamedFile::open("./static/calibration.html")?
         .customize()
         .insert_header(("Cache-Control", "no-cache")))
+}
+
+pub async fn get_bpm_mapping() -> impl Responder {
+    let mapping = crate::buttplug::funscript_utils::get_bpm_intensity_mapping();
+    HttpResponse::Ok().json(mapping)
 }

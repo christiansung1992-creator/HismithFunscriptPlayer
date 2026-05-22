@@ -35,6 +35,8 @@ const elements = {
     mappingList: null
 };
 
+let bpmIntensityMapping = [];
+
 function initElements() {
     elements.presetsContainer = document.getElementById('preset-buttons');
     elements.spinner = document.getElementById('calibration-spinner');
@@ -257,6 +259,17 @@ function renderMappingList() {
         const v = multipliers[p];
         return v === undefined ? `${p}: (inactive)` : `${p}: ${v.toFixed(3)}x`;
     }).join(' | ');
+
+    // append bpm->intensity mapping summary
+    if (Array.isArray(bpmIntensityMapping) && bpmIntensityMapping.length) {
+        const mapText = bpmIntensityMapping
+            .map((pt) => `${pt.bpm.toFixed(0)}:${pt.intensity.toFixed(0)}`)
+            .join(' | ');
+        elements.mappingList.innerHTML +=
+            '<br/><small style="opacity:0.85; margin-top:6px; display:block;">Mapping: ' +
+            mapText +
+            '</small>';
+    }
 }
 
 /* Spinner animation -- uses preset nominal speed only (multiplier does not affect visual) */
@@ -283,6 +296,20 @@ export function setup() {
     initElements();
     buildPresetButtons();
     renderMappingList();
+
+    fetch('/api/calibration-mapping')
+        .then((r) => r.json())
+        .then((mapping) => {
+            bpmIntensityMapping = Array.isArray(mapping) ? mapping : [];
+            renderMappingList();
+            renderMappingGraph(bpmIntensityMapping);
+            window.addEventListener('resize', () =>
+                renderMappingGraph(bpmIntensityMapping)
+            );
+        })
+        .catch((err) => {
+            console.error('Failed to load BPM->intensity mapping:', err);
+        });
 
     // multiplier controls
     elements.multDecLarge.addEventListener('click', () =>
@@ -341,4 +368,72 @@ export function getCalibrationMultiplier(rawIntensity) {
         }
     }
     return 1.0;
+}
+
+/* draw simple BPM->Intensity polyline */
+function renderMappingGraph(mapping) {
+    const canvas = document.getElementById('mapping-canvas');
+    if (!canvas || !Array.isArray(mapping) || mapping.length === 0) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = canvas.clientWidth;
+    const cssHeight = 120;
+    canvas.width = Math.floor(cssWidth * dpr);
+    canvas.height = Math.floor(cssHeight * dpr);
+    canvas.style.height = cssHeight + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+    const pad = 12;
+    const minBpm = mapping[0].bpm;
+    const maxBpm = mapping[mapping.length - 1].bpm;
+    const minY = 0;
+    const maxY = 100;
+
+    const xFor = (b) =>
+        pad + ((b - minBpm) / (maxBpm - minBpm)) * (cssWidth - pad * 2);
+    const yFor = (i) =>
+        cssHeight - pad - ((i - minY) / (maxY - minY)) * (cssHeight - pad * 2);
+
+    // grid lines
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    [0, 25, 50, 75, 100].forEach((val) => {
+        const y = yFor(val);
+        ctx.moveTo(pad, y);
+        ctx.lineTo(cssWidth - pad, y);
+    });
+    ctx.stroke();
+
+    // polyline
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,200,0,0.95)';
+    ctx.lineWidth = 2;
+    mapping.forEach((pt, i) => {
+        const x = xFor(pt.bpm);
+        const y = yFor(pt.intensity);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // points
+    ctx.fillStyle = '#fff';
+    mapping.forEach((pt) => {
+        const x = xFor(pt.bpm);
+        const y = yFor(pt.intensity);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    // labels
+    ctx.fillStyle = '#ddd';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(`${minBpm.toFixed(0)} bpm`, pad, 12);
+    ctx.fillText(`${maxBpm.toFixed(0)} bpm`, cssWidth - pad - 56, 12);
+    ctx.fillText('Intensity', pad, cssHeight - pad - 48);
 }
