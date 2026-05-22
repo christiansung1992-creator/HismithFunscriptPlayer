@@ -114,6 +114,11 @@ pub fn build_directory_tree(
     })
 }
 
+/// Return a map of relative video file paths to their sizes (in bytes).
+///
+/// Walks `base_path` recursively and includes regular files with common video
+/// extensions (mp4, mkv, webm, mov). The returned keys are PathBuf values
+/// relative to `base_path`.
 pub fn get_all_files_with_size(base_path: &Path) -> Result<HashMap<PathBuf, u64>, std::io::Error> {
     let mut file_map = HashMap::new();
     for entry in WalkDir::new(base_path).into_iter().filter_map(|e| e.ok()) {

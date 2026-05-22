@@ -1,7 +1,14 @@
 // src/handlers/funscript_cache.rs
 
+//! Funscript cache utilities
+//!
+//! This module provides a lightweight cache for precomputing intensity statistics
+//! for funscript files under a base directory. The cache is stored as a JSON file
+//! (.funscript_cache.json) beside the funscript base and maps relative file paths
+//! to computed entries (sha256, average/peak intensity, sample counts, timestamp).
+
 use std::collections::{HashMap, HashSet};
-use std::path::{Path};
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -13,12 +20,18 @@ use crate::buttplug::funscript_utils::{
     calculate_thrust_intensity_by_scaled_speed, Action, FunscriptData,
 };
 
+/// Cache entry containing precomputed statistics for one funscript file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FunscriptCacheEntry {
+    /// SHA256 hash of the file contents used to detect changes.
     pub sha256: String,
+    /// Time-weighted average intensity (0..100) across the sample timeline.
     pub average_intensity: f64,
+    /// Maximum intensity observed in the generated intensity timeline.
     pub peak_intensity: f64,
+    /// Number of samples generated when computing intensity (sample_count).
     pub sample_count: usize,
+    /// Unix seconds timestamp when entry was last updated.
     pub last_updated: u64,
 }
 
@@ -49,6 +62,11 @@ async fn save_cache_file(path: &Path, cache: &FunscriptCache) -> Result<(), Stri
         .map_err(|e| format!("Failed write cache {:?}: {}", path, e))
 }
 
+/// Compute time-weighted average and peak intensity from a sampled intensity timeline.
+///
+/// The average is computed by integrating the (linear) average value between
+/// successive samples weighted by the time delta between samples. If the timeline
+/// contains only one sample, that sample is returned as the average.
 fn compute_stats_from_intensity(intensity: &[Action]) -> (f64, f64) {
     if intensity.is_empty() {
         return (0.0, 0.0);
@@ -79,6 +97,7 @@ fn compute_stats_from_intensity(intensity: &[Action]) -> (f64, f64) {
     }
 }
 
+/// Compute sha256 hex digest for a byte slice.
 fn sha256_of_bytes(b: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(b);
@@ -86,6 +105,9 @@ fn sha256_of_bytes(b: &[u8]) -> String {
     hex::encode(res)
 }
 
+/// Parse funscript JSON content, compute intensity timeline and stats, and produce a cache entry.
+///
+/// Returns an entry with zeroed stats for files that are valid but contain too few actions.
 fn compute_entry_from_content(content: &str) -> Result<FunscriptCacheEntry, String> {
     let sha = sha256_of_bytes(content.as_bytes());
     let fun: FunscriptData = serde_json::from_str(content)
@@ -116,6 +138,10 @@ fn compute_entry_from_content(content: &str) -> Result<FunscriptCacheEntry, Stri
 }
 
 /// Scan the funscript directory and update the cache file (creates/overwrites cache_path)
+///
+/// This function walks the funscript_base directory recursively, processes files with
+/// extension ".funscript", computes or reuses cached entries based on SHA256, and writes
+/// the resulting cache JSON to cache_path.
 pub async fn scan_and_update_cache(
     funscript_base: &Path,
     cache_path: &Path,
@@ -177,6 +203,9 @@ pub async fn scan_and_update_cache(
     Ok(cache)
 }
 
+/// Public helper to get or build a cache for a given base directory.
+///
+/// The function writes/updates a ".funscript_cache.json" file inside the base path.
 pub async fn get_cache_for_base(funscript_base: &Path) -> Result<FunscriptCache, String> {
     let cache_path = funscript_base.join(".funscript_cache.json");
     scan_and_update_cache(funscript_base, &cache_path).await

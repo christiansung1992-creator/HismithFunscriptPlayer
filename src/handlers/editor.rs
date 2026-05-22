@@ -8,19 +8,36 @@ use serde::Deserialize;
 use std::{env, path::PathBuf};
 use tokio::fs;
 
+/// Serve the in-browser funscript editor page (static HTML).
+///
+/// The file is served from ./static/editor.html with a no-cache header so
+/// development changes are reflected immediately.
 pub async fn handle_editor_page() -> Result<impl Responder, Error> {
     Ok(NamedFile::open("./static/editor.html")?
         .customize()
         .insert_header(("Cache-Control", "no-cache")))
 }
 
+/// Payload received from the editor when saving a funscript.
+///
+/// - `video_path` is the relative path identifying the target video (used to
+///   determine the directory / filename for the funscript).
+/// - `actions` is the array of Action entries to write into the funscript file.
+/// - `variant` is an optional suffix used to store alternate variants alongside the original.
 #[derive(Deserialize, Debug)]
 pub struct SaveFunscriptPayload {
-    video_path: String,
-    actions: Vec<Action>,
-    variant: Option<String>,
+    pub video_path: String,
+    pub actions: Vec<Action>,
+    pub variant: Option<String>,
 }
 
+/// Save a funscript from the editor into the FUNSCRIPT_SHARE_PATH on disk.
+///
+/// The handler performs basic path validation to avoid directory traversal,
+/// serializes the received actions into a FunscriptData JSON file, and triggers
+/// an asynchronous cache rebuild for the funscript directory.
+///
+/// Returns 200 on success or an appropriate 4xx/5xx response on failure.
 pub async fn save_funscript(payload: web::Json<SaveFunscriptPayload>) -> impl Responder {
     let funscript_share_path = match env::var("FUNSCRIPT_SHARE_PATH") {
         Ok(p) => p,

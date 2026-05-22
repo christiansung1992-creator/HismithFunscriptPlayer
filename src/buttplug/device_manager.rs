@@ -3,7 +3,11 @@
 //! Device connection and control module
 //!
 //! This module manages communication with hardware devices through the Buttplug protocol.
-//! It supports both an oscillating device and a vibrating device simultaneously.
+//! It coordinates scanning, connects compatible devices (oscillate/vibrate), and runs a
+//! small control loop that periodically sends the latest intensity values to connected devices.
+//!
+//! The module exposes a global singleton managed by a OnceCell and convenience async wrappers
+//! for setting current intensities from other parts of the application.
 
 use atomic_float::AtomicF64;
 use buttplug::{
@@ -19,9 +23,16 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::{Mutex, RwLock};
 
 /// Global singleton instance of the device manager
+///
+/// Stored in a OnceCell so other modules can access the runtime manager.
 static DEVICE_MANAGER: OnceCell<Arc<DeviceManager>> = OnceCell::new();
 
 /// Manages communication with connected devices
+///
+/// This struct is intended to be shared across tasks (Arc) and exposes
+/// interior mutability for device references via async Mutex wrappers.
+/// The control loop spawned by `new` periodically (every 100ms) writes
+/// the latest atomic values to any connected devices.
 pub struct DeviceManager {
     /// Client connection to the Buttplug server
     #[allow(dead_code)]
@@ -33,7 +44,7 @@ pub struct DeviceManager {
     /// Currently connected vibrate-capable device
     vibrate_device: Arc<Mutex<Option<Arc<ButtplugClientDevice>>>>,
 
-    /// Latest command value to be sent
+    /// Latest command value to be sent (0.0 .. 1.0)
     latest_oscillate_value: Arc<AtomicF64>,
     latest_vibrate_value: Arc<AtomicF64>,
 
@@ -42,7 +53,12 @@ pub struct DeviceManager {
 }
 
 impl DeviceManager {
-    /// Creates a new DeviceManager instance and starts control loop
+    /// Creates a new DeviceManager instance and starts internal control tasks.
+    ///
+    /// The returned Arc<DeviceManager> must be stored in DEVICE_MANAGER so
+    /// that the process-wide helpers can access it. This method spawns a
+    /// background task that writes current scalar values to connected devices
+    /// on a regular interval.
     fn new(client: Arc<ButtplugClient>) -> Arc<Self> {
         let oscillate_device = Arc::new(Mutex::new(None));
         let vibrate_device = Arc::new(Mutex::new(None));
@@ -105,12 +121,18 @@ impl DeviceManager {
     }
 
     /// Sets the value to send to oscillate devices (0.0 .. 1.0)
+    ///
+    /// This method updates an atomic value that the internal control loop will
+    /// write to any connected oscillate-capable device at its next interval.
     pub async fn set_oscillate_value(&self, value: f64) {
         self.latest_oscillate_value
             .store(value, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Sets the value to send to vibrate devices (0.0 .. 1.0)
+    ///
+    /// This method updates an atomic value that the internal control loop will
+    /// write to any connected vibrate-capable device at its next interval.
     pub async fn set_vibrate_value(&self, value: f64) {
         self.latest_vibrate_value
             .store(value, std::sync::atomic::Ordering::Relaxed);
@@ -118,6 +140,14 @@ impl DeviceManager {
 }
 
 /// Initializes device connection and event loop
+///
+/// Establishes a Buttplug client, spawns tasks to maintain the WebSocket
+/// connection to the server, listens for device added/removed events, and
+/// periodically ensures scanning is active until required devices are found.
+///
+/// The function returns quickly after scheduling the background tasks; errors
+/// are only returned if there is a synchronous initialization problem creating
+/// the client (rare).
 pub async fn initialize_intiface() -> Result<(), ButtplugClientError> {
     let client = Arc::new(ButtplugClient::new("Video player Client"));
     let manager = DeviceManager::new(client.clone());
@@ -262,6 +292,8 @@ pub async fn initialize_intiface() -> Result<(), ButtplugClientError> {
 }
 
 /// Sets the value to send to oscillate devices (0.0 .. 1.0)
+///
+/// Public wrapper that other modules (e.g. WebSocket handlers) can call.
 pub async fn oscillate(value: f64) -> Result<(), ButtplugClientError> {
     if let Some(manager) = DEVICE_MANAGER.get() {
         manager.set_oscillate_value(value).await;
@@ -270,6 +302,8 @@ pub async fn oscillate(value: f64) -> Result<(), ButtplugClientError> {
 }
 
 /// Sets the value to send to vibrate devices (0.0 .. 1.0)
+///
+/// Public wrapper that other modules (e.g. WebSocket handlers) can call.
 pub async fn vibrate(value: f64) -> Result<(), ButtplugClientError> {
     if let Some(manager) = DEVICE_MANAGER.get() {
         manager.set_vibrate_value(value).await;

@@ -3,11 +3,18 @@
 //! Funscript processing module
 //!
 //! This module handles processing of funscript files which contain synchronized motion
-//! data for videos. It provides functionality to:
+//! data for videos. It provides utilities to:
 //! - Parse funscript data structures
-//! - Calculate motion intensities
+//! - Calculate motion intensities from discrete action sets
 //! - Interpolate between motion points
 //! - Optimize motion data for real-time playback
+//!
+//! Conventions and units:
+//! - Time is expressed in milliseconds (u64).
+//! - Position values are floating point in the range 0.0 .. 100.0.
+//! - Many helpers assume the input funscript uses "binary" extremes (0 or 100) when
+//!   deriving speed-based intensity. Functions validate and document when this is required.
+//! - Intensity values returned by processing functions are in the same 0.0 .. 100.0 range.
 
 use serde::{Deserialize, Serialize};
 use std::cmp::{max, min};
@@ -15,7 +22,8 @@ use std::cmp::{max, min};
 /// Represents a single motion action at a specific timestamp
 ///
 /// Actions contain a timestamp (`at`) in milliseconds and a position (`pos`)
-/// value between 0.0 and 100.0 representing the motion position.
+/// value between 0.0 and 100.0 representing the motion position. The struct is
+/// serializable to/from standard funscript JSON representation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Action {
     /// Timestamp in milliseconds when this action occurs
@@ -28,22 +36,26 @@ pub struct Action {
 
 /// Collection of motion actions forming a complete funscript
 ///
-/// Contains an ordered sequence of actions that define the motion
-/// pattern over time.
+/// Contains an ordered sequence of actions that define the motion pattern over time.
+/// Fields map directly to the relevant funscript metadata fields.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunscriptData {
     /// Vector of actions in chronological order
     pub actions: Vec<Action>,
 
+    /// Funscript version string (defaults to "1.0")
     #[serde(default = "default_version")]
     pub version: String,
 
+    /// Whether positions are inverted
     #[serde(default)]
     pub inverted: bool,
 
+    /// Maximum range value used by the script (default 100)
     #[serde(default = "default_range")]
     pub range: u32,
 
+    /// Optional arbitrary metadata from the original file
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
@@ -70,12 +82,18 @@ impl Default for FunscriptData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+/// Simple serializable point used by the calibration API.
+/// Maps a BPM value to a target intensity (0..100).
 pub struct BpmIntensityPoint {
     pub bpm: f64,
     pub intensity: f64,
 }
 
 /// BPM -> intensity calibration table
+///
+/// This table defines a piecewise-linear mapping used by the intensity
+/// generation pipeline. BPM values outside the table range are clamped
+/// to the nearest endpoints.
 pub const BPM_INTENSITY_MAP: [(f64, f64); 11] = [
     (0.0, 0.0),
     (42.0, 10.0),
@@ -91,6 +109,9 @@ pub const BPM_INTENSITY_MAP: [(f64, f64); 11] = [
 ];
 
 /// Returns the calibration mapping as a JSON-serializable Vec
+///
+/// This is used by the HTTP calibration endpoint to return the active
+/// BPM -> intensity mapping to clients.
 pub fn get_bpm_intensity_mapping() -> Vec<BpmIntensityPoint> {
     BPM_INTENSITY_MAP
         .iter()
@@ -104,7 +125,9 @@ pub fn get_bpm_intensity_mapping() -> Vec<BpmIntensityPoint> {
 /// Calculates the interpolated position at a given time between two actions
 ///
 /// Uses linear interpolation to determine the position at any timestamp
-/// between two known action points.
+/// between two known action points. If one side is None, the function will
+/// behave as a step to the available endpoint. This helper expects `at`
+/// timestamps to be expressed in milliseconds.
 ///
 /// # Arguments
 /// * `a0` - The previous action (or None if before first action)
@@ -112,7 +135,7 @@ pub fn get_bpm_intensity_mapping() -> Vec<BpmIntensityPoint> {
 /// * `time` - The timestamp to interpolate at
 ///
 /// # Returns
-/// * `f64` - The interpolated position value
+/// * `f64` - The interpolated position value (0.0 .. 100.0)
 fn interpolate_position(a0: Option<&Action>, a1: Option<&Action>, time: u64) -> f64 {
     match (a0, a1) {
         (None, None) => 0.0,
@@ -141,7 +164,7 @@ fn interpolate_position(a0: Option<&Action>, a1: Option<&Action>, time: u64) -> 
 /// actions with the same position value within a specified time window.
 ///
 /// # Arguments
-/// * `actions` - Vector of actions to optimize
+/// * `actions` - Vector of actions to optimize (will be replaced with condensed set)
 /// * `max_gap_ms` - Maximum time gap in milliseconds to consider positions identical
 fn condense_identical_positions(actions: &mut Vec<Action>, max_gap_ms: u64) {
     if actions.is_empty() {
@@ -186,16 +209,27 @@ fn condense_identical_positions(actions: &mut Vec<Action>, max_gap_ms: u64) {
 /// Calculates continuous intensity values from discrete motion actions
 ///
 /// Processes raw motion data to generate a continuous intensity curve that
-/// represents the speed and amplitude of movements. The intensity is scaled
-/// so that 4 full thrusts per second corresponds to an intensity value of 100.
+/// represents the speed and amplitude of movements. The function computes
+/// summed absolute percent changes inside a sliding window and converts that
+/// rate into an effective BPM which is then mapped to an intensity value
+/// using the BPM_INTENSITY_MAP. The conversion derivation:
+///   - A full thrust is treated as 200% position change (0 -> 100 -> 0)
+///   - percent_per_ms -> BPM uses factor 300.0 (see calculate_window_intensity)
+///
+/// Important notes:
+/// - The input actions are expected to be mostly binary (positions 0.0 or 100.0).
+///   The function will early-return if any action has an intermediate value.
+/// - `sample_rate_ms` determines the spacing of output samples. Output timestamps
+///   are rounded to multiples of this value.
+/// - Returned actions contain intensity values in the range 0.0 .. 100.0
 ///
 /// # Arguments
-/// * `actions` - Slice of motion actions to process
+/// * `actions` - Mutable slice of motion actions to process (will be cloned and sorted)
 /// * `sample_rate_ms` - How often to sample the intensity (milliseconds)
 /// * `window_radius_ms` - Size of the moving analysis window (milliseconds)
 ///
 /// # Returns
-/// * `Vec<Action>` - Vector of actions containing calculated intensities
+/// * `Vec<Action>` - Vector of actions containing calculated intensities with timestamps
 pub fn calculate_thrust_intensity_by_scaled_speed(
     actions: &mut [Action],
     sample_rate_ms: u64,
@@ -246,12 +280,7 @@ pub fn calculate_thrust_intensity_by_scaled_speed(
 
         // Calculate raw intensity within window
         let mut raw_intensity = if window_duration_ms > 0 {
-            calculate_window_intensity(
-                &actions_vec,
-                window_start,
-                window_end,
-                window_duration_ms,
-            )
+            calculate_window_intensity(&actions_vec, window_start, window_end, window_duration_ms)
         } else {
             0.0
         };
@@ -287,7 +316,16 @@ pub fn calculate_thrust_intensity_by_scaled_speed(
 }
 
 /// Maps measured BPM to calibrated intensity (0..100) using piecewise linear interpolation.
-/// NO ATTACHMENTS, just simple hismith machine
+///
+/// The function performs a simple piecewise-linear interpolation across the
+/// BPM_INTENSITY_MAP calibration table. Non-finite inputs are treated as 0,
+/// and values outside the table bounds are clamped to the nearest endpoint.
+///
+/// # Arguments
+/// * `bpm` - Beats-per-minute equivalent derived from motion velocity
+///
+/// # Returns
+/// * `f64` - Intensity in the range 0.0 .. 100.0
 fn map_bpm_to_intensity(bpm: f64) -> f64 {
     if !bpm.is_finite() {
         return 0.0;
@@ -310,11 +348,27 @@ fn map_bpm_to_intensity(bpm: f64) -> f64 {
 }
 
 /// Helper function to calculate intensity within a time window
+///
+/// This routine:
+/// 1. Constructs a list of position samples across the specified window,
+///    inserting interpolated boundary samples at window_start and window_end.
+/// 2. Sums absolute percent position changes between successive samples.
+/// 3. Converts the sum (percent per ms) to an equivalent BPM using a constant
+///    scaling factor and maps that BPM to an intensity value via the calibration table.
+///
+/// # Arguments
+/// * `actions` - Source actions (assumed sorted by `at`)
+/// * `window_start` - Window start time in ms (inclusive)
+/// * `window_end` - Window end time in ms (inclusive)
+/// * `window_duration_ms` - window_end - window_start (precomputed)
+///
+/// # Returns
+/// * `f64` - Intensity value (0.0 .. 100.0)
 fn calculate_window_intensity(
     actions: &[Action],
     window_start: u64,
     window_end: u64,
-    window_duration_ms: u64
+    window_duration_ms: u64,
 ) -> f64 {
     // Find boundary actions
     let start_idx = actions
