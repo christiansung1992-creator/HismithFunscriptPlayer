@@ -433,12 +433,21 @@ button#toggle-directory {
 #calibration-spinner {
     width: 80px;
     height: 80px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#calibration-rotor {
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     background: linear-gradient(90deg, #444, #666);
     position: relative;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.6);
+    transform-origin: 50% 50%;
 }
-#calibration-spinner::after {
+#calibration-rotor::after {
     content: '';
     position: absolute;
     left: 50%;
@@ -448,6 +457,26 @@ button#toggle-directory {
     background: #ffd54f;
     transform: translateX(-50%);
     border-radius: 4px;
+}
+
+/* spinner flash (brief glow + slight scale when a full rotation completes) */
+@keyframes spinner-flash {
+    0% {
+        filter: none;
+        transform: scale(1);
+    }
+    10% {
+        filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.95));
+        transform: scale(1.03);
+    }
+    100% {
+        filter: none;
+        transform: scale(1);
+    }
+}
+
+#calibration-spinner.spinner-flash {
+    animation: spinner-flash 220ms ease-out;
 }
 
 /* Outer compass ring with ticks */

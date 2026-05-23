@@ -19,6 +19,7 @@ let lastSendTime = 0;
 const elements = {
     presetsContainer: null,
     spinner: null,
+    spinnerRotor: null,
     multiplierValue: null,
     startBtn: null,
     stopBtn: null,
@@ -37,9 +38,15 @@ const elements = {
 
 let bpmIntensityMapping = [];
 
+let audioCtx = null;
+let spinnerAccum = 0;
+let lastSpinCount = 0;
+const FLASH_DURATION_MS = 220;
+
 function initElements() {
     elements.presetsContainer = document.getElementById('preset-buttons');
     elements.spinner = document.getElementById('calibration-spinner');
+    elements.spinnerRotor = document.getElementById('calibration-rotor');
     elements.multiplierValue = document.getElementById('multiplier-value');
     elements.startBtn = document.getElementById('start-button');
     elements.stopBtn = document.getElementById('stop-button');
@@ -174,8 +181,51 @@ function adjustMultiplier(delta) {
     setMultiplier(newVal);
 }
 
+function ensureAudioContext() {
+    if (audioCtx) return;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+        console.warn('Web Audio API not available', e);
+        audioCtx = null;
+    }
+}
+
+function playClick() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.25, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+}
+
+function handleFullRotations(count) {
+    if (!elements.spinner || !elements.spinnerRotor) return;
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    for (let i = 0; i < count; i++) {
+        const delay = i * FLASH_DURATION_MS;
+        setTimeout(() => {
+            elements.spinner.classList.remove('spinner-flash');
+            void elements.spinner.offsetWidth; // force reflow to restart animation
+            elements.spinner.classList.add('spinner-flash');
+            playClick();
+        }, delay);
+    }
+}
+
 function startCalibration() {
     if (!selectedPreset || running) return;
+
+    ensureAudioContext();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
     running = true;
     lastSentIntensity = null;
@@ -280,6 +330,8 @@ function startSpinner() {
     if (!selectedPreset) return;
     if (spinnerAnimId) cancelAnimationFrame(spinnerAnimId);
     lastTs = null;
+    spinnerAccum = spinnerAngle;
+    lastSpinCount = Math.floor(spinnerAccum / 360);
     spinnerAnimId = requestAnimationFrame(spinnerFrame);
 }
 
@@ -288,8 +340,21 @@ function spinnerFrame(ts) {
     const dt = (ts - lastTs) / 1000.0;
     lastTs = ts;
     const spinsPerSecNominal = selectedPreset / 25.0; // visual is based on preset only
-    spinnerAngle = (spinnerAngle + dt * spinsPerSecNominal * 360) % 360;
-    elements.spinner.style.transform = `rotate(${spinnerAngle}deg)`;
+    const degDelta = dt * spinsPerSecNominal * 360;
+    spinnerAccum += degDelta;
+    spinnerAngle = spinnerAccum % 360;
+    if (elements.spinnerRotor) {
+        // rotate the inner rotor so flash (on container) doesn't override rotation
+        elements.spinnerRotor.style.transform = `rotate(${spinnerAngle}deg)`;
+    }
+
+    const spinCount = Math.floor(spinnerAccum / 360);
+    if (spinCount > lastSpinCount) {
+        const times = spinCount - lastSpinCount;
+        lastSpinCount = spinCount;
+        handleFullRotations(times);
+    }
+
     spinnerAnimId = requestAnimationFrame(spinnerFrame);
 }
 
