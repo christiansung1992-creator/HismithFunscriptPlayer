@@ -33,7 +33,9 @@ const elements = {
     selectedPreset: null,
     targetSpin: null,
     sentIntensity: null,
-    mappingList: null
+    mappingList: null,
+    profileSelect: null,
+    profileName: null
 };
 
 let bpmIntensityMapping = [];
@@ -61,6 +63,10 @@ function initElements() {
     elements.targetSpin = document.getElementById('target-spin');
     elements.sentIntensity = document.getElementById('sent-intensity');
     elements.mappingList = document.getElementById('mapping-list');
+
+    // new profile UI
+    elements.profileSelect = document.getElementById('profile-select');
+    elements.profileName = document.getElementById('profile-name');
 }
 
 function buildPresetButtons() {
@@ -283,10 +289,52 @@ function stopCalibration() {
     elements.stopBtn.disabled = true;
 }
 
+async function saveProfileToServer(name) {
+    if (!name) return;
+    const payload = { name: name, multipliers: {} };
+    PRESETS.forEach((p) => {
+        if (multipliers[p] !== undefined)
+            payload.multipliers[p.toString()] = multipliers[p];
+    });
+    try {
+        const resp = await fetch('/api/calibration-profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        window.__calibrationProfiles = window.__calibrationProfiles || {};
+        window.__calibrationProfiles[name] = payload.multipliers;
+        await loadProfilesFromServer();
+        if (elements.profileSelect) elements.profileSelect.value = name;
+    } catch (err) {
+        console.error('Failed to save profile', err);
+        alert('Failed to save calibration profile');
+    }
+}
+
 function confirmMultiplier() {
-    if (!selectedPreset) return;
-    renderMappingList();
-    renderMappingGraph(bpmIntensityMapping);
+    // make non-blocking save; users expect fast close
+    (async () => {
+        if (!selectedPreset) return;
+        renderMappingList();
+        renderMappingGraph(bpmIntensityMapping);
+        const name =
+            (elements.profileName && elements.profileName.value.trim()) ||
+            (elements.profileSelect && elements.profileSelect.value) ||
+            '';
+        if (name) await saveProfileToServer(name);
+    })();
+}
+
+export async function saveOnClose() {
+    if (!elements.profileSelect && !elements.profileName) return;
+    const name =
+        (elements.profileName && elements.profileName.value.trim()) ||
+        (elements.profileSelect && elements.profileSelect.value) ||
+        '';
+    if (!name) return;
+    await saveProfileToServer(name);
 }
 
 function resetMultipliers() {
@@ -358,6 +406,66 @@ function spinnerFrame(ts) {
     spinnerAnimId = requestAnimationFrame(spinnerFrame);
 }
 
+/* Profiles: load from server and apply to UI */
+async function loadProfilesFromServer() {
+    try {
+        const resp = await fetch('/api/calibration-profiles');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        window.__calibrationProfiles = data || {};
+        const sel = elements.profileSelect;
+        if (!sel) return;
+        sel.innerHTML = '';
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '(none)';
+        sel.appendChild(noneOpt);
+        Object.keys(window.__calibrationProfiles).forEach((name) => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Failed to load profiles', err);
+    }
+}
+
+function applyProfile(profile) {
+    PRESETS.forEach((p) => {
+        if (
+            profile &&
+            Object.prototype.hasOwnProperty.call(profile, String(p))
+        ) {
+            multipliers[p] = parseFloat(profile[String(p)]);
+        } else {
+            delete multipliers[p];
+        }
+    });
+    buildPresetButtons();
+
+    // auto-select first active preset if any
+    const first = PRESETS.find((p) => multipliers[p] !== undefined);
+    if (first) {
+        const btns = elements.presetsContainer.children;
+        for (let i = 0; i < btns.length; i++) {
+            const b = btns[i];
+            if (b.textContent === String(first)) {
+                selectPreset(first, b);
+                break;
+            }
+        }
+    } else {
+        elements.multiplierInput.value = '1.00';
+        elements.multiplierValue.textContent = '1.00';
+        elements.selectedPreset.textContent = '—';
+        setMultiplierControlsEnabled(false);
+    }
+
+    renderMappingList();
+    renderMappingGraph(bpmIntensityMapping);
+}
+
 /* Events binding */
 export function setup() {
     initWebSocket();
@@ -378,6 +486,20 @@ export function setup() {
         .catch((err) => {
             console.error('Failed to load BPM->intensity mapping:', err);
         });
+
+    // load saved profiles
+    loadProfilesFromServer().then(() => {
+        if (elements.profileSelect) {
+            elements.profileSelect.addEventListener('change', (e) => {
+                const name = e.target.value;
+                if (!name) return;
+                const prof = window.__calibrationProfiles
+                    ? window.__calibrationProfiles[name]
+                    : null;
+                if (prof) applyProfile(prof);
+            });
+        }
+    });
 
     // multiplier controls
     elements.multDecLarge.addEventListener('click', () =>

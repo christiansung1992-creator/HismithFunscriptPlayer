@@ -280,13 +280,28 @@ async function openCalibrationOverlay() {
     try {
         const mod = await import('/site/static/calibration.js');
         if (mod && typeof mod.setup === 'function') mod.setup();
+        // keep a reference so we can trigger save when the overlay is closed
+        window.__calibrationModule = mod;
     } catch (err) {
         console.error('Failed to load calibration module', err);
     }
 
-    function closeOverlay() {
+    async function closeOverlay() {
         const stopBtn = overlay.querySelector('#stop-button');
         if (stopBtn) stopBtn.click();
+
+        // attempt to persist calibration profile on close (best-effort)
+        if (
+            window.__calibrationModule &&
+            typeof window.__calibrationModule.saveOnClose === 'function'
+        ) {
+            try {
+                await window.__calibrationModule.saveOnClose();
+            } catch (err) {
+                console.error('Failed to save calibration on close', err);
+            }
+        }
+
         document.body.style.overflow = '';
         document.removeEventListener('keydown', keyHandler);
         overlay.remove();
