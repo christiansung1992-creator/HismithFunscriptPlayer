@@ -45,6 +45,16 @@ let spinnerAccum = 0;
 let lastSpinCount = 0;
 const FLASH_DURATION_MS = 220;
 
+let ramping = false;
+let rampStartIntensity = 0; // normalized [0..1]
+let rampTargetIntensity = 0;
+let rampStartTime = 0;
+const RAMP_MS = 700; // ramp duration (ms)
+
+let spinnerStartBpm = 0;
+let spinnerTargetBpm = 0;
+let spinnerCurrentBpm = 0;
+
 function initElements() {
     elements.presetsContainer = document.getElementById('preset-buttons');
     elements.spinner = document.getElementById('calibration-spinner');
@@ -63,8 +73,6 @@ function initElements() {
     elements.targetSpin = document.getElementById('target-spin');
     elements.sentIntensity = document.getElementById('sent-intensity');
     elements.mappingList = document.getElementById('mapping-list');
-
-    // new profile UI
     elements.profileSelect = document.getElementById('profile-select');
     elements.profileName = document.getElementById('profile-name');
 }
@@ -102,6 +110,7 @@ function setMultiplierControlsEnabled(enabled) {
 }
 
 function selectPreset(preset, btn) {
+    const previousPreset = selectedPreset;
     selectedPreset = preset;
     // highlight active
     Array.from(elements.presetsContainer.children).forEach((b) =>
@@ -118,6 +127,23 @@ function selectPreset(preset, btn) {
     updateTargetSpinDisplay();
     updateSentIntensityDisplay();
     setMultiplierControlsEnabled(true);
+
+    // smooth transition if already running: ramp both device intensity and spinner BPM
+    if (running) {
+        const targetIntensity = computeIntensityNormalized(
+            selectedPreset,
+            multipliers[selectedPreset] ?? 1.0
+        );
+        rampStartIntensity = getCurrentRampedIntensity();
+        rampTargetIntensity = targetIntensity;
+        rampStartTime = performance.now();
+        ramping = true;
+
+        spinnerStartBpm =
+            spinnerCurrentBpm ||
+            (previousPreset ? getBpmForIntensity(previousPreset) : 0);
+        spinnerTargetBpm = getBpmForIntensity(preset);
+    }
 }
 
 function getBpmForIntensity(intensity) {
@@ -150,6 +176,13 @@ function getBpmForIntensity(intensity) {
     return (i / 25.0) * 60.0;
 }
 
+function getCurrentRampedIntensity() {
+    if (!ramping) return lastSentIntensity ?? 0;
+    const t = clamp((performance.now() - rampStartTime) / RAMP_MS, 0, 1);
+    const s = t * t * (3 - 2 * t); // smoothstep
+    return rampStartIntensity + (rampTargetIntensity - rampStartIntensity) * s;
+}
+
 function updateTargetSpinDisplay() {
     if (!selectedPreset) {
         elements.targetSpin.textContent = '—';
@@ -170,10 +203,15 @@ function updateSentIntensityDisplay() {
         elements.sentIntensity.textContent = '—';
         return;
     }
-    const val = computeIntensityNormalized(
-        selectedPreset,
-        multipliers[selectedPreset]
-    );
+    let val;
+    if (running && lastSentIntensity !== null) {
+        val = lastSentIntensity;
+    } else {
+        val = computeIntensityNormalized(
+            selectedPreset,
+            multipliers[selectedPreset]
+        );
+    }
     elements.sentIntensity.textContent = val.toFixed(3);
 }
 
@@ -197,18 +235,19 @@ function setMultiplier(value, doSendImmediately = true) {
     renderMappingGraph(bpmIntensityMapping);
 
     if (running && doSendImmediately) {
-        const intensity = computeIntensityNormalized(
+        const targetIntensity = computeIntensityNormalized(
             selectedPreset,
             multipliers[selectedPreset]
         );
-        if (
-            lastSentIntensity === null ||
-            Math.abs(intensity - lastSentIntensity) > 1e-6
-        ) {
-            sendDeviceCommand(intensity, 0);
-            lastSentIntensity = intensity;
-            lastSendTime = Date.now();
-        }
+        rampStartIntensity = getCurrentRampedIntensity();
+        rampTargetIntensity = targetIntensity;
+        rampStartTime = performance.now();
+        ramping = true;
+
+        // multiplier doesn't affect visual spinner speed, keep spinner BPM unchanged
+        spinnerStartBpm =
+            spinnerCurrentBpm || getBpmForIntensity(selectedPreset);
+        spinnerTargetBpm = spinnerStartBpm;
     }
 }
 
@@ -265,25 +304,66 @@ function startCalibration() {
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
     running = true;
-    lastSentIntensity = null;
-    lastSendTime = 0;
+    lastSentIntensity = 0;
+    lastSendTime = Date.now();
 
-    // initial immediate send
+    // target intensity (normalized)
     const initial = computeIntensityNormalized(
         selectedPreset,
         multipliers[selectedPreset]
     );
-    sendDeviceCommand(initial, 0);
-    lastSentIntensity = initial;
+
+    // start ramp from 0 -> initial
+    rampStartIntensity = 0;
+    rampTargetIntensity = initial;
+    rampStartTime = performance.now();
+    ramping = true;
+
+    // spinner: ramp from 0 BPM -> nominal BPM for selectedPreset
+    spinnerStartBpm = 0;
+    spinnerTargetBpm = getBpmForIntensity(selectedPreset);
+    spinnerCurrentBpm = spinnerStartBpm;
+
+    // ensure device starts at 0
+    sendDeviceCommand(0, 0);
+    lastSentIntensity = 0;
     lastSendTime = Date.now();
     updateSentIntensityDisplay();
 
+    // more frequent sends during ramps for smoothness
+    if (sendInterval) {
+        clearInterval(sendInterval);
+        sendInterval = null;
+    }
     sendInterval = setInterval(() => {
         if (!running) return;
-        const intensity = computeIntensityNormalized(
+
+        const nowPerf = performance.now();
+        let intensity = computeIntensityNormalized(
             selectedPreset,
             multipliers[selectedPreset]
         );
+
+        if (ramping) {
+            const t = clamp((nowPerf - rampStartTime) / RAMP_MS, 0, 1);
+            const s = t * t * (3 - 2 * t); // smoothstep
+            const start = rampStartIntensity ?? 0;
+            const target = rampTargetIntensity ?? intensity;
+            intensity = start + (target - start) * s;
+
+            // update spinner current BPM in lock-step
+            const sb = spinnerStartBpm ?? 0;
+            const tb = spinnerTargetBpm ?? getBpmForIntensity(selectedPreset);
+            spinnerCurrentBpm = sb + (tb - sb) * s;
+
+            if (t >= 1) {
+                ramping = false;
+                spinnerCurrentBpm = tb;
+            }
+        } else {
+            spinnerCurrentBpm = getBpmForIntensity(selectedPreset);
+        }
+
         if (
             lastSentIntensity === null ||
             Math.abs(intensity - lastSentIntensity) > 1e-6
@@ -296,7 +376,7 @@ function startCalibration() {
             sendDeviceCommand(intensity, 0);
             lastSendTime = Date.now();
         }
-    }, 200);
+    }, 100);
 
     startSpinner();
     elements.startBtn.disabled = true;
@@ -316,6 +396,16 @@ function stopCalibration() {
     sendDeviceCommand(0, 0);
     lastSentIntensity = null;
     lastSendTime = 0;
+
+    // reset ramp state
+    ramping = false;
+    rampStartIntensity = 0;
+    rampTargetIntensity = 0;
+    rampStartTime = 0;
+    spinnerStartBpm = 0;
+    spinnerTargetBpm = 0;
+    spinnerCurrentBpm = 0;
+
     elements.startBtn.disabled = false;
     elements.stopBtn.disabled = true;
 }
@@ -418,7 +508,22 @@ function spinnerFrame(ts) {
     if (!lastTs) lastTs = ts;
     const dt = (ts - lastTs) / 1000.0;
     lastTs = ts;
-    const spinsPerSecNominal = getBpmForIntensity(selectedPreset) / 60.0;
+
+    // update current spinner BPM smoothly if ramping, using the same ramp timeline
+    if (ramping) {
+        const t = clamp((ts - rampStartTime) / RAMP_MS, 0, 1);
+        const s = t * t * (3 - 2 * t);
+        spinnerCurrentBpm =
+            spinnerStartBpm + (spinnerTargetBpm - spinnerStartBpm) * s;
+        if (t >= 1) {
+            ramping = false;
+            spinnerCurrentBpm = spinnerTargetBpm;
+        }
+    } else {
+        spinnerCurrentBpm = getBpmForIntensity(selectedPreset);
+    }
+
+    const spinsPerSecNominal = spinnerCurrentBpm / 60.0;
     const degDelta = dt * spinsPerSecNominal * 360;
     spinnerAccum += degDelta;
     spinnerAngle = spinnerAccum % 360;
