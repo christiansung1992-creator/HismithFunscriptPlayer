@@ -40,6 +40,36 @@ async function main() {
         const funscriptMap = payload.funscripts || {}; // pass funscript cache info
         const directoryTreeContainer =
             document.getElementById('directory-tree');
+
+        try {
+            if (payload && payload.funscript_cache_error) {
+                const msg = payload.funscript_cache_error;
+                const container = document.getElementById(
+                    'directory-container'
+                );
+                if (container) {
+                    let errEl = document.getElementById(
+                        'funscript-cache-error'
+                    );
+                    if (!errEl) {
+                        errEl = document.createElement('div');
+                        errEl.id = 'funscript-cache-error';
+                        errEl.style.cssText =
+                            'color:#fff;background:#8b0000;padding:8px;border-radius:4px;margin:8px;font-weight:600;';
+                        container.insertBefore(errEl, directoryTreeContainer);
+                    }
+                    errEl.textContent = msg;
+                }
+            } else {
+                const existing = document.getElementById(
+                    'funscript-cache-error'
+                );
+                if (existing) existing.remove();
+            }
+        } catch (e) {
+            console.error('Error rendering funscript cache warning:', e);
+        }
+
         initDirectoryTree(
             directoryTreeData,
             directoryTreeContainer,

@@ -47,20 +47,30 @@ pub async fn get_directory_tree() -> impl Responder {
     };
 
     // Try to include funscript cache if configured
-    let funscript_info = if let Ok(funscript_base) = env::var("FUNSCRIPT_SHARE_PATH") {
+    let mut funscript_info = json!({});
+    let mut funscript_cache_error: Option<String> = None;
+
+    if let Ok(funscript_base) = env::var("FUNSCRIPT_SHARE_PATH") {
         match funscript_cache::get_cache_for_base(&PathBuf::from(funscript_base)).await {
-            Ok(map) => json!(map),
+            Ok(map) => {
+                funscript_info = json!(map);
+            }
             Err(e) => {
                 log::warn!("Funscript cache build failed: {}", e);
-                json!({})
+                // Provide a clearer, user-facing message for common permission/write errors
+                let lower = e.to_lowercase();
+                if lower.contains("permission denied") || lower.contains("failed write") || lower.contains("permission") {
+                    funscript_cache_error = Some("Server cannot write to the funscripts directory; caching disabled. Please ensure the server process has write permissions to the FUNSCRIPT_SHARE_PATH.".to_string());
+                } else {
+                    funscript_cache_error = Some(format!("Funscript cache build failed: {}", e));
+                }
             }
         }
-    } else {
-        json!({})
-    };
+    }
 
     HttpResponse::Ok().json(json!({
         "tree": tree,
-        "funscripts": funscript_info
+        "funscripts": funscript_info,
+        "funscript_cache_error": funscript_cache_error
     }))
 }
