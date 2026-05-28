@@ -119,24 +119,6 @@ impl DeviceManager {
 
         manager
     }
-
-    /// Sets the value to send to oscillate devices (0.0 .. 1.0)
-    ///
-    /// This method updates an atomic value that the internal control loop will
-    /// write to any connected oscillate-capable device at its next interval.
-    pub async fn set_oscillate_value(&self, value: f64) {
-        self.latest_oscillate_value
-            .store(value, std::sync::atomic::Ordering::Relaxed);
-    }
-
-    /// Sets the value to send to vibrate devices (0.0 .. 1.0)
-    ///
-    /// This method updates an atomic value that the internal control loop will
-    /// write to any connected vibrate-capable device at its next interval.
-    pub async fn set_vibrate_value(&self, value: f64) {
-        self.latest_vibrate_value
-            .store(value, std::sync::atomic::Ordering::Relaxed);
-    }
 }
 
 /// Initializes device connection and event loop
@@ -291,22 +273,18 @@ pub async fn initialize_intiface() -> Result<(), ButtplugClientError> {
     Ok(())
 }
 
-/// Sets the value to send to oscillate devices (0.0 .. 1.0)
-///
-/// Public wrapper that other modules (e.g. WebSocket handlers) can call.
-pub async fn oscillate(value: f64) -> Result<(), ButtplugClientError> {
+pub fn oscillate_sync(value: f64) {
     if let Some(manager) = DEVICE_MANAGER.get() {
-        manager.set_oscillate_value(value).await;
+        manager
+            .latest_oscillate_value
+            .store(value, std::sync::atomic::Ordering::Relaxed);
     }
-    Ok(())
 }
 
-/// Sets the value to send to vibrate devices (0.0 .. 1.0)
-///
-/// Public wrapper that other modules (e.g. WebSocket handlers) can call.
-pub async fn vibrate(value: f64) -> Result<(), ButtplugClientError> {
+pub fn vibrate_sync(value: f64) {
     if let Some(manager) = DEVICE_MANAGER.get() {
-        manager.set_vibrate_value(value).await;
+        manager
+            .latest_vibrate_value
+            .store(value, std::sync::atomic::Ordering::Relaxed);
     }
-    Ok(())
 }

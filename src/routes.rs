@@ -1,7 +1,12 @@
 // src/routes.rs
 
 //! Route configuration for the Video Player web server.
-//! Defines all HTTP endpoints and WebSocket connections.
+//!
+//! Registers endpoints used by the frontend and API:
+//! - /ws -> WebSocket handshake to intiface_socket::handle_ws_start
+//! - /api/* -> REST API endpoints (directory-tree, funscripts, calibration)
+//! - /site/* -> UI pages and static assets; /site/static serves files from ./static
+//!   with a Cache-Control: no-cache header applied.
 
 use crate::{
     handlers::{calibration, editor, funscript, index, video},
@@ -10,18 +15,6 @@ use crate::{
 use actix_files::Files;
 use actix_web::{middleware::DefaultHeaders, web};
 
-/// Configures all routes for the web server.
-///
-/// # Routes
-/// - `/ws` - WebSocket endpoint for device control
-/// - `/site` - Main web application routes:
-///   - `/` - Index page
-///   - `/video/{filename}` - Video streaming
-///   - `/funscripts/{filename}` - Funscript files
-///   - `/static/*` - Static file serving
-///
-/// # Arguments
-/// * `cfg` - Service configuration to add routes to
 pub fn setup_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(web::resource("/ws").route(web::get().to(intiface_socket::handle_ws_start)))
         .service(

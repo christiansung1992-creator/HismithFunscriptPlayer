@@ -2,26 +2,31 @@
 
 //! WebSocket handler for device control via the Buttplug protocol.
 //!
-//! This module implements a WebSocket connection that receives intensity values
-//! from the web client and forwards them to the connected device through the
-//! Buttplug protocol.
+//! Receives JSON messages from browser clients and forwards normalized intensity
+//! values to the Buttplug device manager. Expected JSON payload:
+//! { "o": <f64>, "v": <f64> } where `o` (oscillate) and `v` (vibrate) are optional.
+//! Values are interpreted in the 0.0..1.0 range and are clamped before being
+//! passed to device_manager::oscillate_sync and device_manager::vibrate_sync.
+//! Non-JSON or binary messages result in a structured JSON error reply. Implemented
+//! as an Actix WebSocket actor.
 
 use crate::buttplug::device_manager;
-use actix::{Actor, ActorContext, StreamHandler};
+use actix::prelude::*;
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use log::{debug, error, info};
+use serde::Deserialize;
 
-/// WebSocket actor that handles device control messages.
-///
-/// Receives floating point values between 0.0 and 1.0 representing
-/// device intensity and forwards them to the device manager.
 #[derive(Default)]
-pub struct OscillateSocket {
-    // We could add fields here to track connection state if needed
+pub struct DeviceControlWs;
+
+#[derive(Deserialize)]
+struct ControlCommand {
+    o: Option<f64>,
+    v: Option<f64>,
 }
 
-impl Actor for OscillateSocket {
+impl Actor for DeviceControlWs {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, _ctx: &mut Self::Context) {
@@ -33,69 +38,60 @@ impl Actor for OscillateSocket {
     }
 }
 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for OscillateSocket {
+impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for DeviceControlWs {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         match msg {
             Ok(ws::Message::Text(text)) => {
-                if let Ok(cmd) = serde_json::from_str::<serde_json::Value>(&text) {
-                    let o = cmd.get("o").and_then(|v| v.as_f64());
-                    let v = cmd.get("v").and_then(|v| v.as_f64());
-                    if let Some(osc) = o {
-                        let clamped = osc.max(0.0).min(1.0);
-                        let command = device_manager::oscillate(clamped);
-                        actix::spawn(async move {
-                            if let Err(e) = command.await {
-                                error!("Error sending oscillate command: {}", e);
-                            }
-                        });
+                match serde_json::from_str::<ControlCommand>(&text) {
+                    Ok(cmd) => {
+                        if let Some(o) = cmd.o {
+                            let clamped = o.max(0.0).min(1.0);
+                            device_manager::oscillate_sync(clamped);
+                        }
+                        if let Some(v) = cmd.v {
+                            let clamped = v.max(0.0).min(1.0);
+                            device_manager::vibrate_sync(clamped);
+                        }
                     }
-                    if let Some(vib) = v {
-                        let clamped = vib.max(0.0).min(1.0);
-                        let command = device_manager::vibrate(clamped);
-                        actix::spawn(async move {
-                            if let Err(e) = command.await {
-                                error!("Error sending vibrate command: {}", e);
-                            }
-                        });
+                    Err(e) => {
+                        error!("Invalid JSON command: {}", e);
+                        // reply with a structured JSON error so clients can handle it
+                        ctx.text(
+                            serde_json::json!({ "error": format!("invalid JSON: {}", e) })
+                                .to_string(),
+                        );
                     }
-                    return;
-                } else {
-                    error!("Unknown command received: {}", text);
-                    ctx.text("Unknown command. Use 'v:<value>' for vibrate or 'o:<value>' for oscillate.");
                 }
             }
+
             Ok(ws::Message::Ping(msg)) => {
                 debug!("Received ping");
                 ctx.pong(&msg);
             }
+
             Ok(ws::Message::Close(reason)) => {
                 info!("Received close message: {:?}", reason);
                 ctx.close(reason);
                 ctx.stop();
             }
+
             Ok(ws::Message::Binary(bin)) => {
                 error!("Unexpected binary message of {} bytes", bin.len());
-                // Binary messages aren't expected/supported
-                ctx.text("Binary messages not supported");
+                ctx.text(
+                    serde_json::json!({ "error": "binary messages not supported" }).to_string(),
+                );
             }
+
             Err(e) => {
                 error!("WebSocket protocol error: {}", e);
                 ctx.stop();
             }
-            _ => {} // Ignore other message types
+
+            _ => {}
         }
     }
 }
 
-/// Initializes a new WebSocket connection for device control.
-///
-/// # Arguments
-/// * `req` - The HTTP request initiating the WebSocket connection
-/// * `stream` - The WebSocket payload stream
-///
-/// # Returns
-/// * `Ok(HttpResponse)` - WebSocket connection established successfully
-/// * `Err(Error)` - Failed to establish WebSocket connection
 pub async fn handle_ws_start(
     req: HttpRequest,
     stream: web::Payload,
@@ -106,7 +102,7 @@ pub async fn handle_ws_start(
         .unwrap_or_else(|| String::from("unknown"));
     info!("WebSocket connection attempt from {}", addr);
 
-    match ws::start(OscillateSocket::default(), &req, stream) {
+    match ws::start(DeviceControlWs::default(), &req, stream) {
         Ok(response) => {
             info!("WebSocket handshake successful");
             Ok(response)

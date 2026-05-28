@@ -61,7 +61,7 @@ _The host device_manager will repeatedly try to connect to Intiface and to start
   - `buttplug/`
     - `device_manager.rs`  
       
-      Manages Buttplug client, device discovery, scanning loop, and a periodic control loop that sends latest intensity values to oscillate/vibrate devices. Provides public async helpers `oscillate(value)` and `vibrate(value)`. Uses Tokio tasks and synchronization primitives.
+      Manages Buttplug client, device discovery, scanning loop, and a periodic control loop that sends latest intensity values to oscillate/vibrate devices. Exposes initialize_intiface() for startup and synchronous helpers (e.g. oscillate_sync() and vibrate_sync()) that are invoked by the WebSocket actor.
     - `funscript_utils.rs`  
       
       Core funscript data types and processing utilities. E.g. interpolation helpers, condensing identical positions, and calculating thrust intensity by converting discrete 0/100 actions into a continuous intensity curve used for device control/visualization.
@@ -87,7 +87,7 @@ _The host device_manager will repeatedly try to connect to Intiface and to start
     Scans VIDEO_SHARE_PATH and builds JSON tree used by the front-end directory UI. Provides `build_directory_tree` and `get_all_files_with_size`. Skips "funscripts" directories and filters by common video extensions.
   - `intiface_socket.rs`  
     
-    Actix WebSocket actor to receive JSON commands from the browser and forward to the device manager. Expects JSON like { "o": \<osc\>, "v": \<vib\> }.
+    Actix WebSocket actor to receive JSON commands from the browser and forward them to the device manager. Expects JSON like { "o": <f64>, "v": <f64> } where values are normalized in the 0.0..1.0 range; the server clamps values before forwarding. Non-JSON or binary payloads produce structured JSON error replies.
   - `lib.rs`  
     
     Exports modules and organizes the crate structure.

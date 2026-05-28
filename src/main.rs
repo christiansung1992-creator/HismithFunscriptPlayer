@@ -1,48 +1,41 @@
 // src/main.rs
 
 //! Main entry point for the Video Player web server.
-//! This server provides a REST API for video playback control and device management.
+//!
+//! Loads .env and initializes logging. Spawns background tasks for:
+//! - funscript cache initialization when FUNSCRIPT_SHARE_PATH is set
+//! - Intiface initialization via buttplug::device_manager::initialize_intiface()
+//!
+//! Configures Actix HTTP server with logging and permissive CORS. Bind address is
+//! controlled by HOST_IP and SERVER_PORT environment variables (defaults to 0.0.0.0:5441).
 
-use actix_web::{
-    middleware::{DefaultHeaders, Logger},
-    App, HttpServer,
-};
+use actix_cors::Cors;
+use actix_web::{middleware::Logger, App, HttpServer};
 use env_logger::Env;
 use hismith_player_site::{buttplug::device_manager, routes};
 use log::{error, info};
 use std::env;
-use tokio::task;
 
-/// Default server port
 const SERVER_PORT: u16 = 5441;
 
-/// Starts the web server and initializes Intiface management.
-///
-/// # Error
-/// Returns an error if:
-/// - The server fails to bind to the specified address
-/// - Environment variables are not properly configured
-/// - Intiface initialization fails
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Load environment variables from .env file
-    dotenv::from_filename(".env").expect("Failed to load .env");
-
-    // Initialize logging with default level of 'info'
+    dotenv::dotenv().ok();
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
-    // spawn a background cache build (best-effort)
     info!("Starting background cache");
-    if let Ok(f) = std::env::var("FUNSCRIPT_SHARE_PATH") {
+    if let Ok(f) = env::var("FUNSCRIPT_SHARE_PATH") {
         let base = std::path::PathBuf::from(f);
         tokio::spawn(async move {
-            let _ = hismith_player_site::funscript_cache::get_cache_for_base(&base).await;
+            match hismith_player_site::funscript_cache::get_cache_for_base(&base).await {
+                Ok(_) => info!("Funscript cache ready"),
+                Err(e) => error!("Funscript cache error: {}", e),
+            }
         });
     }
 
-    // Initialize intiface management in background task
     info!("Starting intiface initialization...");
-    task::spawn(async {
+    tokio::spawn(async {
         if let Err(e) = device_manager::initialize_intiface().await {
             error!("Intiface initialization error: {}", e);
         } else {
@@ -50,24 +43,27 @@ async fn main() -> std::io::Result<()> {
         }
     });
 
-    // Get server configuration from environment
-    let host_ip = env::var("HOST_IP").expect("HOST_IP must be set in .env file");
+    // LAN configuration
+    let host_ip = env::var("HOST_IP").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port = env::var("SERVER_PORT")
+        .ok()
+        .and_then(|s| s.parse::<u16>().ok())
+        .unwrap_or(SERVER_PORT);
 
-    info!("Starting HTTP server on {}:{}...", host_ip, SERVER_PORT);
-
-    // Configure and start the HTTP server
+    info!("Starting HTTP server on {}:{}...", host_ip, port);
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(
-                DefaultHeaders::new()
-                    .add(("Access-Control-Allow-Origin", "*"))
-                    .add(("Access-Control-Allow-Methods", "GET, POST"))
-                    .add(("Access-Control-Allow-Headers", "content-type")),
+                Cors::default()
+                    .allow_any_origin()
+                    .allowed_methods(vec!["GET", "POST", "OPTIONS"])
+                    .allow_any_header()
+                    .max_age(3600),
             )
             .configure(routes::setup_routes)
     })
-    .bind(format!("{}:{}", host_ip, SERVER_PORT))?
+    .bind(format!("{}:{}", host_ip, port))?
     .run()
     .await
 }

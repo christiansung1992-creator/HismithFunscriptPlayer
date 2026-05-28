@@ -34,6 +34,11 @@ pub mod funscript_cache;
 pub mod intiface_socket;
 
 /// Buttplug-related functionality for device control and funscript processing
+///
+/// The buttplug::device_manager module manages the Buttplug client lifecycle,
+/// device discovery and the periodic control loop. It exposes initialize_intiface()
+/// for startup and synchronous control helpers used by the WebSocket actor (for
+/// example: oscillate_sync and vibrate_sync).
 pub mod buttplug {
     pub mod device_manager;
     pub mod funscript_utils;
